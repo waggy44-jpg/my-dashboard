@@ -286,6 +286,22 @@
           </button>
         </div>
 
+        <!-- Gemini API Key configuration -->
+        <div class="space-y-3 border-t border-slate-800 pt-3">
+          <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider">AI Configuration</label>
+          <div class="p-3 bg-purple-500/10 border border-purple-500/20 rounded-xl text-[10px] leading-relaxed text-purple-300">
+            <h5 class="font-bold mb-1 flex items-center gap-1"><i class="fa-solid fa-wand-magic-sparkles"></i> Personal Gemini API Key</h5>
+            Required for AI synthesis on your phone. Create a free key at <a href="https://aistudio.google.com/" target="_blank" class="underline text-white font-bold">Google AI Studio</a>.
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-400 mb-1">Gemini API Key</label>
+            <input type="password" id="gemini-api-key" placeholder="AIzaSy..." class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-purple-500/60 placeholder-slate-600">
+          </div>
+          <button onclick="saveGeminiConfig()" class="w-full py-2 bg-purple-600 hover:bg-purple-500 active:bg-purple-700 text-white font-bold rounded-xl text-xs transition-colors shadow-md">
+            Save Gemini Key
+          </button>
+        </div>
+
         <!-- System Reset -->
         <div class="pt-2 border-t border-slate-800">
           <button onclick="resetToDefaults()" class="w-full py-2 border border-slate-800 hover:bg-slate-800 text-slate-400 hover:text-white rounded-xl text-xs font-medium transition-colors">
@@ -318,7 +334,8 @@
       latestBriefingText: '',
       audioBlobUrl: null,
       isPlayingAudio: false,
-      audioElement: null
+      audioElement: null,
+      geminiApiKey: ''
     };
 
     // Realistic Demo Data sets
@@ -375,6 +392,7 @@
         const savedMode = localStorage.getItem(STORE_PREFIX + 'mode');
         const savedClientId = localStorage.getItem(STORE_PREFIX + 'client_id');
         const savedToken = localStorage.getItem(STORE_PREFIX + 'access_token');
+        const savedGeminiKey = localStorage.getItem(STORE_PREFIX + 'gemini_api_key');
         
         if (savedMode) appState.mode = savedMode;
         if (savedClientId) {
@@ -382,11 +400,27 @@
           document.getElementById('google-client-id').value = savedClientId;
         }
         if (savedToken) appState.accessToken = savedToken;
+        if (savedGeminiKey) {
+          appState.geminiApiKey = savedGeminiKey;
+          document.getElementById('gemini-api-key').value = savedGeminiKey;
+        }
 
         updateUIModeStyles();
       } catch (e) {
         showToast('System configuration loading error.', 'error');
       }
+    }
+
+    // Save Gemini Key inside localStorage securely
+    function saveGeminiConfig() {
+      const inputKey = document.getElementById('gemini-api-key').value.trim();
+      if (!inputKey) {
+        showToast('Please enter a valid Gemini API Key', 'error');
+        return;
+      }
+      appState.geminiApiKey = inputKey;
+      localStorage.setItem(STORE_PREFIX + 'gemini_api_key', inputKey);
+      showToast('Gemini API Key saved!', 'success');
     }
 
     // Toggle settings panel visible states
@@ -472,10 +506,13 @@
       localStorage.removeItem(STORE_PREFIX + 'mode');
       localStorage.removeItem(STORE_PREFIX + 'client_id');
       localStorage.removeItem(STORE_PREFIX + 'access_token');
+      localStorage.removeItem(STORE_PREFIX + 'gemini_api_key');
       appState.mode = 'demo';
       appState.clientId = '';
       appState.accessToken = null;
+      appState.geminiApiKey = '';
       document.getElementById('google-client-id').value = '';
+      document.getElementById('gemini-api-key').value = '';
       updateUIModeStyles();
       refreshAllWidgets();
       toggleSettingsModal();
@@ -818,11 +855,18 @@
       return `${diffHrs}h ago`;
     }
 
-    // Call LLM safely inside Canvas wrapper
+    // Call LLM using saved user Gemini API Key
     async function callGeminiAPI(systemPrompt, userQuery) {
-      // API key is empty as mandated; Canvas automatically injects the platform key in the background
-      const apiKey = ""; 
-      const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`;
+      const apiKey = appState.geminiApiKey; 
+      
+      if (!apiKey) {
+        showToast('Missing Gemini API Key! Enter it in Settings.', 'warning');
+        toggleSettingsModal();
+        throw new Error('Missing Gemini API Key');
+      }
+
+      // Using the highly efficient gemini-2.5-flash for real-time widget operations
+      const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
 
       const payload = {
         contents: [{ parts: [{ text: userQuery }] }],
@@ -938,11 +982,17 @@
         return;
       }
 
+      const apiKey = appState.geminiApiKey;
+      if (!apiKey) {
+        showToast('Missing Gemini API Key! Enter it in Settings.', 'warning');
+        toggleSettingsModal();
+        return;
+      }
+
       // Visual State: Loader
       ttsBtn.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin text-[10px]"></i> Vocoding...`;
       ttsBtn.disabled = true;
 
-      const apiKey = ""; // Canvas handles authentication
       const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=${apiKey}`;
 
       const payload = {
