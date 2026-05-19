@@ -481,7 +481,6 @@
             renderGmail();
         }
 
-        // Render Agenda Lists
         function renderCalendar() {
             const list = document.getElementById('calendarList');
             const count = document.getElementById('calendarCount');
@@ -491,8 +490,8 @@
 
             if (events.length === 0) {
                 list.innerHTML = `
-                    <div class="text-center py-8 text-gray-500 italic text-[11px]">
-                        No upcoming agenda meetings found.
+                    <div class="text-center py-8 text-gray-500 italic">
+                        No upcoming meetings found.
                     </div>
                 `;
                 return;
@@ -500,34 +499,47 @@
 
             list.innerHTML = events.map(ev => {
                 const title = ev.summary || 'Untitled Event';
-                const loc = ev.location || 'No location details';
-                const webLink = ev.htmlLink || 'https://calendar.google.com';
+                const loc = ev.location || 'No location set';
                 
+                // Extracting dates and times dynamically
+                let monthStr = 'ALL';
+                let dayStr = 'DAY';
                 let timeStr = 'All Day';
-                if (ev.start && ev.start.dateTime) {
-                    const d = new Date(ev.start.dateTime);
-                    timeStr = d.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                
+                if (ev.start) {
+                    const d = ev.start.dateTime ? new Date(ev.start.dateTime) : (ev.start.date ? new Date(ev.start.date) : null);
+                    if (d) {
+                        monthStr = d.toLocaleDateString([], { month: 'short' }).toUpperCase();
+                        dayStr = d.toLocaleDateString([], { day: 'numeric' });
+                        if (ev.start.dateTime) {
+                            timeStr = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                        }
+                    }
                 }
 
-                // Apple/Android Google calendar deep links
-                const appLink = `googlecalendar://event?id=${ev.id || ''}`;
-
                 return `
-                    <div onclick="triggerNativeDeepLink('${appLink}', '${webLink}')" class="p-3 bg-gray-900/50 hover:bg-gray-800/40 rounded-xl border border-gray-800/80 transition-all active:scale-[0.97] cursor-pointer flex flex-col justify-between h-[62px]">
-                        <div class="flex justify-between items-center gap-2">
-                            <span class="font-bold text-gray-200 text-[11px] truncate max-w-[70%]">${title}</span>
-                            <span class="text-[9px] font-bold text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded">${timeStr}</span>
+                    <div class="p-3 bg-gray-900/50 hover:bg-gray-800/40 rounded-xl border border-gray-800/80 transition-all flex items-center gap-3">
+                        <!-- Left: Visual Date Block -->
+                        <div class="flex flex-col items-center justify-center bg-blue-500/10 text-blue-400 rounded-lg p-1.5 min-w-[42px] h-[42px] shrink-0 border border-blue-500/15">
+                            <span class="text-[8px] uppercase font-bold tracking-wider leading-none">${monthStr}</span>
+                            <span class="text-sm font-extrabold leading-none mt-0.5">${dayStr}</span>
                         </div>
-                        <div class="flex justify-between items-center text-[9px] text-gray-500 mt-1">
-                            <span class="truncate max-w-[80%]"><i class="fa-solid fa-location-dot text-blue-500/70 mr-1"></i> ${loc}</span>
-                            <i class="fa-solid fa-arrow-up-right-from-square text-[8px] text-gray-600"></i>
+                        
+                        <!-- Right: Event Information -->
+                        <div class="flex-1 min-w-0">
+                            <div class="flex justify-between items-start gap-1">
+                                <span class="font-bold text-gray-200 text-xs truncate max-w-[70%]">${title}</span>
+                                <span class="text-[9px] font-bold text-blue-400 bg-blue-500/5 px-1.5 py-0.5 rounded shrink-0">${timeStr}</span>
+                            </div>
+                            <div class="text-[10px] text-gray-500 mt-1 flex items-center gap-1.5 truncate">
+                                <i class="fa-solid fa-location-dot text-[8px] text-gray-600"></i> ${loc}
+                            </div>
                         </div>
                     </div>
                 `;
             }).join('');
         }
 
-        // Render Gmail Lists
         function renderGmail() {
             const list = document.getElementById('emailList');
             const count = document.getElementById('emailCount');
