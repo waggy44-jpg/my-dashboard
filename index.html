@@ -7,7 +7,7 @@
   <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- Google Fonts (Inter & Space Grotesk) -->
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght=300;400;500;600;700&family=Space+Grotesk:wght=500;700&display=swap" rel="stylesheet">
   <!-- FontAwesome Icons -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <!-- Google Identity Services (GSI) Library -->
@@ -57,7 +57,7 @@
     }
   </style>
 </head>
-<body class="bg-slate-950 text-slate-100 min-h-full flex flex-col justify-between overflow-x-hidden antialiased">
+<body class="bg-slate-950 text-slate-100 min-h-full flex flex-col justify-between overflow-x-hidden antialiased font-sans">
 
   <!-- Top Status Bar & App Header -->
   <header class="sticky top-0 z-50 bg-slate-950/80 backdrop-blur-md border-b border-slate-900 px-4 py-3 flex items-center justify-between">
@@ -105,7 +105,7 @@
       </div>
     </div>
 
-    <!-- NEW WIDGET: GEMINI EXECUTIVE BRIEFING & INTEGRATION -->
+    <!-- GEMINI EXECUTIVE BRIEFING & INTEGRATION -->
     <section class="widget-card bg-slate-900/60 border border-purple-500/20 rounded-3xl p-4 shadow-xl backdrop-blur-sm relative overflow-hidden glowing-border">
       <div class="absolute top-0 right-0 w-24 h-24 bg-purple-600/10 rounded-full blur-2xl pointer-events-none"></div>
       
@@ -131,7 +131,7 @@
         <p class="text-slate-400 text-center italic">Tap "Synthesize" to analyze calendar, mail & top news stories with Gemini AI.</p>
       </div>
 
-      <!-- Live Interactive Search Box (Querying day with context or general live search) -->
+      <!-- Live Interactive Search Box -->
       <div class="mt-4 pt-4 border-t border-slate-800/50">
         <div class="relative">
           <input type="text" id="ai-query-input" placeholder="Ask Gemini about your day or news..." class="w-full bg-slate-950/80 border border-slate-800 hover:border-slate-700 focus:border-purple-500/60 rounded-xl py-2 pl-3 pr-10 text-xs text-slate-100 outline-none transition-all placeholder-slate-600">
@@ -166,7 +166,7 @@
         </div>
       </div>
 
-      <!-- Live Connection Prompt (Overlay when not connected in live mode) -->
+      <!-- Live Connection Prompt -->
       <div id="calendar-overlay" class="hidden absolute inset-0 bg-slate-950/90 backdrop-blur-sm flex flex-col items-center justify-center p-4 text-center">
         <i class="fa-solid fa-calendar text-3xl text-slate-600 mb-2"></i>
         <p class="text-xs text-slate-300 font-medium mb-3">Sync with Google Calendar</p>
@@ -227,7 +227,7 @@
       </div>
     </section>
 
-    <!-- PWA Installation Instruction Banner -->
+    <!-- PWA Installation Banner -->
     <section class="bg-indigo-950/40 border border-indigo-900/50 rounded-2xl p-3 flex items-start space-x-3">
       <div class="p-2 bg-indigo-500/10 rounded-lg text-indigo-400 mt-0.5">
         <i class="fa-solid fa-mobile-screen-button"></i>
@@ -242,7 +242,7 @@
 
   </main>
 
-  <!-- Settings Modal (OAuth and Mode Config) -->
+  <!-- Settings Modal -->
   <div id="settings-modal" class="fixed inset-0 bg-slate-950/90 backdrop-blur-md z-50 flex items-center justify-center p-4 opacity-0 pointer-events-none transition-all duration-300">
     <div class="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-sm overflow-hidden shadow-2xl">
       <!-- Modal Header -->
@@ -271,11 +271,11 @@
           </div>
         </div>
 
-        <!-- Google API Credentials Panel (Only active when in Live Mode) -->
+        <!-- Google API Credentials Panel -->
         <div id="live-config-panel" class="opacity-50 pointer-events-none transition-all duration-200 space-y-3">
           <div class="p-3 bg-indigo-500/10 border border-indigo-500/20 rounded-xl text-[10px] leading-relaxed text-indigo-300">
             <h5 class="font-bold mb-1 flex items-center gap-1"><i class="fa-solid fa-circle-info"></i> Direct Client Integration</h5>
-            Data stays secure in your browser. Create a <strong class="text-white">Web Application Client ID</strong> on your Google Cloud Console with your widget URL authorized in standard scopes.
+            Data stays secure in your browser. Create a <strong class="text-white">Web Application Client ID</strong> on your Google Cloud Console.
           </div>
           <div>
             <label class="block text-xs font-semibold text-slate-400 mb-1">Google OAuth Client ID</label>
@@ -291,15 +291,27 @@
           <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider">AI Configuration</label>
           <div class="p-3 bg-purple-500/10 border border-purple-500/20 rounded-xl text-[10px] leading-relaxed text-purple-300">
             <h5 class="font-bold mb-1 flex items-center gap-1"><i class="fa-solid fa-wand-magic-sparkles"></i> Personal Gemini API Key</h5>
-            Required for AI synthesis on your phone. Create a free key at <a href="https://aistudio.google.com/" target="_blank" class="underline text-white font-bold">Google AI Studio</a>.
+            Obtain a free developer key at <a href="https://aistudio.google.com/" target="_blank" class="underline text-white font-bold">Google AI Studio</a>.
           </div>
           <div>
             <label class="block text-xs font-semibold text-slate-400 mb-1">Gemini API Key</label>
             <input type="password" id="gemini-api-key" placeholder="AIzaSy..." class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-purple-500/60 placeholder-slate-600">
           </div>
-          <button onclick="saveGeminiConfig()" class="w-full py-2 bg-purple-600 hover:bg-purple-500 active:bg-purple-700 text-white font-bold rounded-xl text-xs transition-colors shadow-md">
-            Save Gemini Key
-          </button>
+          
+          <!-- Test Connection Diagnostics Buttons -->
+          <div class="grid grid-cols-2 gap-2">
+            <button onclick="saveGeminiConfig()" class="py-2 bg-purple-600 hover:bg-purple-500 active:bg-purple-700 text-white font-bold rounded-xl text-xs transition-colors shadow-md">
+              Save key
+            </button>
+            <button onclick="testGeminiConnection()" class="py-2 border border-purple-500/30 bg-purple-500/5 hover:bg-purple-500/10 text-purple-400 font-bold rounded-xl text-xs transition-colors shadow-md flex items-center justify-center gap-1">
+              <i class="fa-solid fa-circle-question"></i> Test Key
+            </button>
+          </div>
+
+          <!-- Connection Diagnostic Log Window -->
+          <div id="gemini-test-status" class="hidden mt-2 p-3 rounded-xl text-[10px] font-mono leading-relaxed border bg-slate-950 overflow-x-auto max-h-[150px] no-scrollbar">
+            <!-- Populates with debugging logs -->
+          </div>
         </div>
 
         <!-- System Reset -->
@@ -338,7 +350,7 @@
       geminiApiKey: ''
     };
 
-    // Realistic Demo Data sets
+    // Simulated Datasets
     const DEMO_EVENTS = [
       { id: '1', summary: '💼 Quarterly Business Review', start: { dateTime: getRelativeTimeOffset(0, 9, 0) }, color: 'emerald-400', location: 'Meeting Room 3A' },
       { id: '2', summary: '🥗 Lunch with Product Designer', start: { dateTime: getRelativeTimeOffset(0, 12, 30) }, color: 'indigo-400', location: 'Gusto Bistro' },
@@ -357,28 +369,20 @@
 
     // Initialize Widget on startup
     window.onload = function() {
-      // Setup dynamic times & dates immediately
       updateDateTimeDisplay();
       setInterval(updateDateTimeDisplay, 1000);
-
-      // Load client settings if cached
       loadSavedSettings();
-
-      // Render widgets according to state
       refreshAllWidgets();
     };
 
-    // Update real-time digital clock and current date display
+    // Update digital clock and date
     function updateDateTimeDisplay() {
       const now = new Date();
-      // Time Display (00:00 format)
       document.getElementById('time-display').textContent = now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
-      // Full date string format
       const options = { weekday: 'short', day: 'numeric', month: 'short' };
       document.getElementById('current-date-header').textContent = now.toLocaleDateString('en-US', options).toUpperCase();
     }
 
-    // Helper to generate dynamic offset dates for mock datasets
     function getRelativeTimeOffset(daysOffset, hours, minutes) {
       const date = new Date();
       date.setDate(date.getDate() + daysOffset);
@@ -386,7 +390,7 @@
       return date.toISOString();
     }
 
-    // Load from Local Storage
+    // Load configurations from Local Storage
     function loadSavedSettings() {
       try {
         const savedMode = localStorage.getItem(STORE_PREFIX + 'mode');
@@ -411,7 +415,7 @@
       }
     }
 
-    // Save Gemini Key inside localStorage securely
+    // Save Gemini Key inside localStorage
     function saveGeminiConfig() {
       const inputKey = document.getElementById('gemini-api-key').value.trim();
       if (!inputKey) {
@@ -430,6 +434,8 @@
       if (isVisible) {
         modal.classList.replace('opacity-100', 'opacity-0');
         modal.classList.add('pointer-events-none');
+        // Hide connection logger on close
+        document.getElementById('gemini-test-status').classList.add('hidden');
       } else {
         modal.classList.replace('opacity-0', 'opacity-100');
         modal.classList.remove('pointer-events-none');
@@ -456,26 +462,18 @@
       const gmailOverlay = document.getElementById('gmail-overlay');
 
       if (appState.mode === 'demo') {
-        // Style buttons
         demoBtn.className = "py-1.5 text-xs font-semibold rounded-lg transition-all bg-indigo-600 text-white shadow";
         liveBtn.className = "py-1.5 text-xs font-semibold rounded-lg transition-all text-slate-400 hover:text-white";
-        // Lock live UI controls
         configPanel.classList.add('opacity-50', 'pointer-events-none');
-        demoBadge.classList.replace('hidden', 'inline-block');
         demoBadge.classList.remove('hidden');
-
-        // Hide login overlays on components since demo needs no authentication
         calendarOverlay.classList.add('hidden');
         gmailOverlay.classList.add('hidden');
       } else {
-        // Live Mode configurations active
         demoBtn.className = "py-1.5 text-xs font-semibold rounded-lg transition-all text-slate-400 hover:text-white";
         liveBtn.className = "py-1.5 text-xs font-semibold rounded-lg transition-all bg-indigo-600 text-white shadow";
-        // Activate configurations input parameters
         configPanel.classList.remove('opacity-50', 'pointer-events-none');
         demoBadge.classList.add('hidden');
 
-        // Check if credentials exist and token is verified
         if (!appState.accessToken) {
           calendarOverlay.classList.remove('hidden');
           gmailOverlay.classList.remove('hidden');
@@ -486,7 +484,7 @@
       }
     }
 
-    // Save customized developer API Keys inside localStorage securely
+    // Save credentials in storage
     function saveGoogleConfig() {
       const inputId = document.getElementById('google-client-id').value.trim();
       if (!inputId) {
@@ -496,12 +494,10 @@
       appState.clientId = inputId;
       localStorage.setItem(STORE_PREFIX + 'client_id', inputId);
       showToast('Client configuration stored!', 'success');
-      
-      // Trigger token requests with standard flow
       initiateGoogleLogin();
     }
 
-    // Reset settings in case of sync anomalies or key changes
+    // Reset all settings
     function resetToDefaults() {
       localStorage.removeItem(STORE_PREFIX + 'mode');
       localStorage.removeItem(STORE_PREFIX + 'client_id');
@@ -519,14 +515,13 @@
       showToast('Storage wiped completely.', 'info');
     }
 
-    // Refresh Action Routing for all widgets
     function refreshAllWidgets() {
       refreshCalendar();
       refreshGmail();
       refreshNews();
     }
 
-    // Authentication via direct browser login (No server token caching)
+    // Authentication via direct browser login
     let tokenClient;
     function initiateGoogleLogin() {
       if (!appState.clientId) {
@@ -536,7 +531,6 @@
       }
 
       try {
-        // Initialize implicit grant client setup directly
         tokenClient = google.accounts.oauth2.initTokenClient({
           client_id: appState.clientId,
           scope: GAPI_SCOPES,
@@ -545,17 +539,12 @@
               appState.accessToken = tokenResponse.access_token;
               localStorage.setItem(STORE_PREFIX + 'access_token', tokenResponse.access_token);
               showToast('Google account linked successfully!', 'success');
-              
-              // Hide login blockers immediately
               document.getElementById('calendar-overlay').classList.add('hidden');
               document.getElementById('gmail-overlay').classList.add('hidden');
-              
-              // Fetch genuine Google Data
               refreshAllWidgets();
             }
           },
         });
-        // Run popup prompt directly inside client browser container
         tokenClient.requestAccessToken();
       } catch (err) {
         showToast('OAuth Client configuration error.', 'error');
@@ -563,10 +552,9 @@
       }
     }
 
-    // Trigger Calendar fetch sequence
+    // Calendar sync flow
     function refreshCalendar() {
       const loader = document.getElementById('calendar-refresh-icon');
-      const container = document.getElementById('calendar-container');
       loader.classList.add('fa-spin');
 
       if (appState.mode === 'demo') {
@@ -580,7 +568,6 @@
           loader.classList.remove('fa-spin');
           return;
         }
-        // Fetch Calendar entries direct from API
         const timeMin = new Date().toISOString();
         fetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events?timeMin=${timeMin}&maxResults=5&orderBy=startTime&singleEvents=true`, {
           headers: { 'Authorization': `Bearer ${appState.accessToken}` }
@@ -608,7 +595,6 @@
       }
     }
 
-    // Map fetched events array into target container HTML markup
     function renderCalendarData(events) {
       const container = document.getElementById('calendar-container');
       if (!events || events.length === 0) {
@@ -623,11 +609,8 @@
         const startRaw = event.start.dateTime || event.start.date;
         const startDate = new Date(startRaw);
         
-        // Formatting options
         const timeStr = startDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
         const dayStr = startDate.toLocaleDateString('en-US', { day: 'numeric', month: 'short' });
-        
-        // Random style dynamic elements if properties aren't in payload
         const badgeColor = event.color || 'indigo-400';
 
         return `
@@ -654,7 +637,7 @@
       }).join('');
     }
 
-    // Fetch Gmail details from API or mock resources
+    // Gmail threads flow
     function refreshGmail() {
       const loader = document.getElementById('gmail-refresh-icon');
       loader.classList.add('fa-spin');
@@ -671,7 +654,6 @@
           return;
         }
 
-        // Fetch unread messages
         fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages?q=is:unread&maxResults=5', {
           headers: { 'Authorization': `Bearer ${appState.accessToken}` }
         })
@@ -687,7 +669,6 @@
             return;
           }
 
-          // Gather full content batch using promises
           const promises = data.messages.map(msg => 
             fetch(`https://gmail.googleapis.com/gmail/v1/users/me/messages/${msg.id}`, {
               headers: { 'Authorization': `Bearer ${appState.accessToken}` }
@@ -702,7 +683,6 @@
                 const fromHeader = headers.find(h => h.name.toLowerCase() === 'from');
                 const dateHeader = headers.find(h => h.name.toLowerCase() === 'date');
                 
-                // Formulate Name from payload string: "First Last <email>" -> "First Last"
                 let fromName = fromHeader ? fromHeader.value : 'Unknown Sender';
                 if (fromName.includes('<')) {
                   fromName = fromName.substring(0, fromName.indexOf('<')).trim().replace(/"/g, '');
@@ -741,7 +721,6 @@
       }
     }
 
-    // Render Gmail threads
     function renderGmailData(mails) {
       const container = document.getElementById('gmail-container');
       if (!mails || mails.length === 0) {
@@ -764,13 +743,11 @@
       `).join('');
     }
 
-    // Fetch top news directly from BBC World RSS Feed parsed using a public JSON bridge converter
+    // World news feed flow
     function refreshNews() {
       const loader = document.getElementById('news-refresh-icon');
-      const container = document.getElementById('news-container');
       loader.classList.add('fa-spin');
 
-      // Use BBC World News RSS and convert to JSON via feed conversion proxy
       const feedUrl = encodeURIComponent('https://feeds.bbci.co.uk/news/world/rss.xml');
       const apiEndpoint = `https://api.rss2json.com/v1/api.json?rss_url=${feedUrl}`;
 
@@ -778,9 +755,7 @@
         .then(res => res.json())
         .then(data => {
           if (data && data.items) {
-            // Cut results down to top 5 stories
             const stories = data.items.slice(0, 5).map(item => {
-              // Extract publication date parameters
               const pubDate = new Date(item.pubDate);
               const relativeTimeStr = getRelativeTimeString(pubDate);
 
@@ -802,7 +777,6 @@
           loader.classList.remove('fa-spin');
           showToast('Failed to fetch world news feed. Showing offline stories.', 'warning');
           
-          // Render highly reliable offline news fallback so dashboard is never blank
           const mockNews = [
             { title: 'Global Economy Shows Resilience Amid Shifting Trade Routes', source: 'Financial Times', pubTime: '2 hours ago', link: '#' },
             { title: 'New Advancements in Solar Energy Battery Grid Storage Discovered', source: 'ScienceDaily', pubTime: '4 hours ago', link: '#' },
@@ -815,7 +789,6 @@
         });
     }
 
-    // Render world news
     function renderNewsStories(stories) {
       const container = document.getElementById('news-container');
       container.innerHTML = stories.map((story, idx) => `
@@ -839,7 +812,6 @@
       `).join('');
     }
 
-    // Calculate dynamic time differences for human-friendly displays (e.g. 2 hours ago)
     function getRelativeTimeString(date) {
       const now = new Date();
       const diffMs = now - date;
@@ -855,7 +827,84 @@
       return `${diffHrs}h ago`;
     }
 
-    // Call LLM using saved user Gemini API Key
+    // Ping Gemini directly and show detailed error analysis inside the Settings Panel
+    async function testGeminiConnection() {
+      const statusBox = document.getElementById('gemini-test-status');
+      const inputKey = document.getElementById('gemini-api-key').value.trim();
+
+      if (!inputKey) {
+        showToast('Type or paste an API Key first!', 'warning');
+        return;
+      }
+
+      statusBox.classList.remove('hidden');
+      statusBox.className = "mt-2 p-3 rounded-xl text-[10px] font-mono leading-relaxed border bg-slate-950 text-amber-400 border-amber-500/20 max-h-[150px] overflow-y-auto no-scrollbar";
+      statusBox.innerHTML = `<div><i class="fa-solid fa-spinner fa-spin"></i> Pinging Google Generative Language server...</div>`;
+
+      // Try basic generateContent request using the primary models
+      const testPayload = { contents: [{ parts: [{ text: "Respond with only 'Connection OK'." }] }] };
+      const testModels = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"];
+      let lastErrorMessage = "";
+
+      for (let model of testModels) {
+        try {
+          statusBox.innerHTML += `<div class="text-slate-400 mt-1">Trying model: <strong class="text-slate-200">${model}</strong>...</div>`;
+          const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${inputKey}`;
+          
+          const response = await fetch(url, {
+            method: 'POST',
+            headers: { 
+              'Content-Type': 'application/json',
+              'x-goog-api-key': inputKey
+            },
+            body: JSON.stringify(testPayload)
+          });
+
+          const data = await response.json();
+
+          if (response.ok && data.candidates?.[0]?.content?.parts?.[0]?.text) {
+            statusBox.className = "mt-2 p-3 rounded-xl text-[10px] font-mono leading-relaxed border bg-slate-950 text-emerald-400 border-emerald-500/20 max-h-[150px] overflow-y-auto no-scrollbar";
+            statusBox.innerHTML = `
+              <div class="font-bold"><i class="fa-solid fa-circle-check"></i> Connection Successful!</div>
+              <div class="text-slate-400 mt-1">Model: ${model}</div>
+              <div class="text-slate-400">Response: "${data.candidates[0].content.parts[0].text.trim()}"</div>
+              <div class="text-slate-300 mt-1">You are fully configured! Close settings and tap "Synthesize".</div>`;
+            return;
+          } else {
+            // Read Google-specific JSON errors
+            if (data.error) {
+              lastErrorMessage = `[${data.error.status || response.status}] ${data.error.message}`;
+            } else {
+              lastErrorMessage = `HTTP ${response.status} - No readable data generated.`;
+            }
+          }
+        } catch (err) {
+          lastErrorMessage = err.message;
+        }
+      }
+
+      // If we fell through all models, analyze the failure reason
+      let explanation = "Verify your internet and ensure you didn't paste spaces.";
+      let lowerErr = lastErrorMessage.toLowerCase();
+
+      if (lowerErr.includes("api_key_invalid") || lowerErr.includes("key not valid") || lowerErr.includes("invalid api key")) {
+        explanation = "Google rejected this key. Go to Google AI Studio, make a brand-new API key, and double-check you copied the entire string without cutting off any letters.";
+      } else if (lowerErr.includes("blocked") || lowerErr.includes("location") || lowerErr.includes("not available")) {
+        explanation = "This Gemini model is geoblocked or not supported in your location. Try using a VPN or verify support in your territory.";
+      } else if (lowerErr.includes("quota") || lowerErr.includes("limit") || lowerErr.includes("429")) {
+        explanation = "You have exceeded Google's free rate limit. Wait 60 seconds and try again.";
+      } else if (lowerErr.includes("model not found") || lowerErr.includes("not found")) {
+        explanation = "The API does not support this specific model version in your region. Verify your project settings in Google AI Studio.";
+      }
+
+      statusBox.className = "mt-2 p-3 rounded-xl text-[10px] font-mono leading-relaxed border bg-slate-950 text-rose-400 border-rose-500/20 max-h-[180px] overflow-y-auto no-scrollbar";
+      statusBox.innerHTML = `
+        <div class="font-bold"><i class="fa-solid fa-circle-xmark"></i> Connection Failed!</div>
+        <div class="text-slate-400 mt-1 text-[9px] bg-slate-900 p-1.5 rounded border border-slate-800 break-words">Raw Log: ${lastErrorMessage}</div>
+        <div class="text-slate-200 mt-2 font-sans"><strong class="text-rose-300">How to Fix:</strong> ${explanation}</div>`;
+    }
+
+    // Call LLM using saved user Gemini API Key (with automatic model fallback routing)
     async function callGeminiAPI(systemPrompt, userQuery) {
       const apiKey = appState.geminiApiKey; 
       
@@ -865,34 +914,49 @@
         throw new Error('Missing Gemini API Key');
       }
 
-      // Using the highly efficient gemini-2.5-flash for real-time widget operations
-      const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+      // Sequential fallback models
+      const models = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"];
+      let lastError = null;
 
-      const payload = {
-        contents: [{ parts: [{ text: userQuery }] }],
-        systemInstruction: {
-          parts: [{ text: systemPrompt }]
+      for (let model of models) {
+        try {
+          const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+          
+          const payload = {
+            contents: [{ parts: [{ text: userQuery }] }],
+            systemInstruction: {
+              parts: [{ text: systemPrompt }]
+            }
+          };
+
+          const response = await fetch(apiUrl, {
+            method: 'POST',
+            headers: { 
+              'Content-Type': 'application/json',
+              'x-goog-api-key': apiKey // redundantly send inside headers for added bypass robustness
+            },
+            body: JSON.stringify(payload)
+          });
+
+          const result = await response.json();
+
+          if (response.ok) {
+            const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
+            if (text) return text;
+          } else {
+            if (result.error) {
+              lastError = new Error(`[${model}] ${result.error.status}: ${result.error.message}`);
+            } else {
+              lastError = new Error(`[${model}] HTTP ${response.status}`);
+            }
+          }
+        } catch (error) {
+          lastError = error;
         }
-      };
-
-      try {
-        const response = await fetch(apiUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        });
-
-        if (!response.ok) {
-          throw new Error(`Gemini API error: ${response.statusText}`);
-        }
-
-        const result = await response.json();
-        const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
-        return text || "No response received from Gemini.";
-      } catch (error) {
-        console.error("Gemini invocation failed:", error);
-        throw error;
       }
+
+      // If we made it here, all models failed
+      throw lastError || new Error("All fallback models failed.");
     }
 
     // Synthesizes current Calendar, Gmail threads, and News headlines
@@ -900,7 +964,6 @@
       const container = document.getElementById('ai-briefing-container');
       const ttsBtn = document.getElementById('tts-play-btn');
       
-      // Visual feedback: Loader shim style
       container.className = "space-y-2 text-xs text-slate-400 bg-slate-950/40 p-3 rounded-2xl border border-purple-500/20 min-h-[90px] flex flex-col justify-center shimmer-bg font-medium";
       container.innerHTML = `
         <div class="flex flex-col items-center gap-2 py-4">
@@ -908,7 +971,6 @@
           <span>Gemini analyzing schedule, emails, and global headlines...</span>
         </div>`;
       
-      // Stop and clear any ongoing audio
       if (appState.audioElement) {
         appState.audioElement.pause();
         appState.isPlayingAudio = false;
@@ -919,7 +981,6 @@
       appState.latestBriefingText = "";
       appState.audioBlobUrl = null;
 
-      // Extract details into prompts
       const calendarSnippet = appState.calendarData.length > 0
         ? appState.calendarData.map(e => `${e.summary} at ${new Date(e.start.dateTime || e.start.date).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`).join('; ')
         : "No scheduled meetings.";
@@ -940,7 +1001,6 @@
         const resultText = await callGeminiAPI(systemPrompt, userQuery);
         appState.latestBriefingText = resultText;
 
-        // Render response
         container.className = "space-y-2 text-xs text-slate-300 leading-relaxed bg-slate-950/40 p-3 rounded-2xl border border-purple-500/10 min-h-[90px]";
         container.innerHTML = `
           <div class="flex items-start gap-2.5">
@@ -948,13 +1008,20 @@
             <p>${resultText}</p>
           </div>`;
         
-        // Enable audio play option
         ttsBtn.disabled = false;
         ttsBtn.classList.remove('opacity-40');
         showToast('AI Briefing successfully synthesized!', 'success');
       } catch (err) {
-        container.className = "space-y-2 text-xs text-slate-300 leading-relaxed bg-slate-950/40 p-3 rounded-2xl border border-slate-800 min-h-[90px] flex flex-col justify-center";
-        container.innerHTML = `<p class="text-rose-400 text-center"><i class="fa-solid fa-circle-exclamation mr-1"></i> Gemini synthesis failed. Check your network or connection.</p>`;
+        // Render detailed server error to the user so they aren't left in the dark
+        container.className = "space-y-2 text-xs text-slate-300 leading-relaxed bg-slate-950/40 p-3 rounded-2xl border border-rose-500/30 bg-rose-500/5 min-h-[90px] flex flex-col justify-center p-4";
+        container.innerHTML = `
+          <div class="text-center">
+            <p class="text-rose-400 font-bold mb-1"><i class="fa-solid fa-triangle-exclamation"></i> AI Synthesis Failed</p>
+            <p class="text-[10px] text-slate-400 line-clamp-2 bg-slate-950 p-2 rounded border border-slate-800 break-words font-mono mt-1">${err.message}</p>
+            <button onclick="toggleSettingsModal()" class="mt-3 px-3 py-1 bg-rose-950 border border-rose-800 hover:bg-rose-900 text-[10px] text-rose-300 rounded-lg transition-colors font-semibold">
+              <i class="fa-solid fa-gear mr-1"></i> Open Settings & Test Connection
+            </button>
+          </div>`;
         showToast('Briefing generation failed.', 'error');
       }
     }
@@ -968,14 +1035,12 @@
         return;
       }
 
-      // If already playing, toggle pause
       if (appState.isPlayingAudio && appState.audioElement) {
         appState.audioElement.pause();
         appState.isPlayingAudio = false;
         ttsBtn.innerHTML = `<i class="fa-solid fa-volume-high text-[10px]"></i> Listen`;
         return;
       } else if (appState.audioElement && !appState.isPlayingAudio && appState.audioBlobUrl) {
-        // Resume play
         appState.audioElement.play();
         appState.isPlayingAudio = true;
         ttsBtn.innerHTML = `<i class="fa-solid fa-pause text-[10px]"></i> Pause`;
@@ -989,7 +1054,6 @@
         return;
       }
 
-      // Visual State: Loader
       ttsBtn.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin text-[10px]"></i> Vocoding...`;
       ttsBtn.disabled = true;
 
@@ -1013,7 +1077,10 @@
       try {
         const response = await fetch(apiUrl, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 
+            'Content-Type': 'application/json',
+            'x-goog-api-key': apiKey
+          },
           body: JSON.stringify(payload)
         });
 
@@ -1025,22 +1092,18 @@
         const mimeType = part?.inlineData?.mimeType;
 
         if (audioData && mimeType && mimeType.startsWith("audio/")) {
-          // Identify Sample Rate (usually 24000Hz or read from mimeType pattern rate=(\d+))
           let sampleRate = 24000; 
           const rateMatch = mimeType.match(/rate=(\d+)/);
           if (rateMatch) {
             sampleRate = parseInt(rateMatch[1], 10);
           }
 
-          // Convert raw base64 data to PCM array buffer
           const pcmBuffer = base64ToArrayBuffer(audioData);
           const pcm16 = new Int16Array(pcmBuffer);
           
-          // Inject raw audio samples into a proper RIFF WAV container block
           const wavBlob = pcmToWav(pcm16, sampleRate);
           appState.audioBlobUrl = URL.createObjectURL(wavBlob);
 
-          // Instantiate Audio Component
           appState.audioElement = new Audio(appState.audioBlobUrl);
           appState.audioElement.play();
           
@@ -1063,7 +1126,6 @@
       }
     }
 
-    // Convert base64 string directly to ArrayBuffer
     function base64ToArrayBuffer(base64) {
       const binaryString = atob(base64);
       const len = binaryString.length;
@@ -1074,17 +1136,14 @@
       return bytes.buffer;
     }
 
-    // Build standard 44-byte WAV header over signed 16-bit PCM arrays
     function pcmToWav(pcm16, sampleRate) {
       const buffer = new ArrayBuffer(44 + pcm16.length * 2);
       const view = new DataView(buffer);
 
-      /* RIFF identifier */
       view.setUint32(0, 0x52494646, false); // "RIFF"
       view.setUint32(4, 36 + pcm16.length * 2, true); // ChunkSize
       view.setUint32(8, 0x57415645, false); // "WAVE"
 
-      /* Format chunk */
       view.setUint32(12, 0x666d7420, false); // "fmt "
       view.setUint32(16, 16, true); // Subchunk1Size
       view.setUint16(20, 1, true); // AudioFormat (1 = PCM)
@@ -1094,11 +1153,9 @@
       view.setUint16(32, 2, true); // BlockAlign
       view.setUint16(34, 16, true); // BitsPerSample
 
-      /* Data chunk */
       view.setUint32(36, 0x64617461, false); // "data"
       view.setUint32(40, pcm16.length * 2, true); // Subchunk2Size
 
-      // Populate samples into view container
       let index = 44;
       for (let i = 0; i < pcm16.length; i++) {
         view.setInt16(index, pcm16[i], true);
@@ -1119,12 +1176,10 @@
         return;
       }
 
-      // Reveal visual state and load
       responseBox.classList.remove('hidden');
       responseBox.innerHTML = `<div class="flex items-center gap-2"><i class="fa-solid fa-circle-notch fa-spin text-purple-400"></i> Thinking...</div>`;
       queryInput.value = '';
 
-      // Feed today's live contextual elements
       const calendarSnippet = appState.calendarData.length > 0
         ? appState.calendarData.map(e => `${e.summary} at ${e.start.dateTime || e.start.date}`).join(', ')
         : "no events";
@@ -1146,22 +1201,20 @@ If they ask about scheduling or mail, synthesize replies or advise on conflict z
             <p class="leading-relaxed text-slate-200">${answer}</p>
           </div>`;
       } catch (err) {
-        responseBox.innerHTML = `<span class="text-rose-400 font-medium">Failed to process query. Try again.</span>`;
+        responseBox.innerHTML = `<span class="text-rose-400 font-medium">Failed to process query: ${err.message}</span>`;
       }
     }
 
-    // Trigger ask button when Enter key is pressed in query input
     document.getElementById('ai-query-input')?.addEventListener('keydown', function(event) {
       if (event.key === 'Enter') {
         askGeminiQuery();
       }
     });
 
-    // Toast alert builder (Self-destructing custom components avoiding system alerts)
+    // Toast alert builder
     function showToast(message, type = 'info') {
       const container = document.getElementById('toast-container');
       
-      // Setup dynamic styling properties based on message type
       let styles = {
         success: { bg: 'bg-emerald-950/95', border: 'border-emerald-500/30', text: 'text-emerald-400', icon: 'fa-circle-check' },
         error: { bg: 'bg-rose-950/95', border: 'border-rose-500/30', text: 'text-rose-400', icon: 'fa-circle-exclamation' },
@@ -1175,13 +1228,11 @@ If they ask about scheduling or mail, synthesize replies or advise on conflict z
       
       container.appendChild(toast);
       
-      // Animate Entrance
       setTimeout(() => {
         toast.classList.replace('translate-y-2', 'translate-y-0');
         toast.classList.replace('opacity-0', 'opacity-100');
       }, 50);
 
-      // Animate Removal
       setTimeout(() => {
         toast.classList.replace('translate-y-0', 'translate-y-2');
         toast.classList.replace('opacity-100', 'opacity-0');
