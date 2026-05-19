@@ -351,21 +351,23 @@
             list.innerHTML = events.map(ev => {
                 const title = ev.summary || 'Untitled Event';
                 const loc = ev.location || 'No location set';
+                const calLink = ev.htmlLink || 'https://calendar.google.com';
                 let timeStr = 'All Day';
                 if (ev.start && ev.start.dateTime) {
                     const d = new Date(ev.start.dateTime);
                     timeStr = d.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
                 }
                 return `
-                    <div class="p-3 bg-gray-900/50 hover:bg-gray-800/40 rounded-xl border border-gray-800/80 transition-all">
+                    <a href="${calLink}" target="_blank" rel="noopener noreferrer" class="block p-3 bg-gray-900/50 hover:bg-gray-800/40 rounded-xl border border-gray-800/80 transition-all hover:border-blue-500/30">
                         <div class="flex justify-between items-start gap-2">
                             <span class="font-bold text-gray-200 text-xs truncate max-w-[75%]">${title}</span>
                             <span class="text-[10px] font-bold text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded">${timeStr}</span>
                         </div>
-                        <div class="text-[10px] text-gray-500 mt-1 flex items-center gap-1.5 truncate">
-                            <i class="fa-solid fa-location-dot"></i> ${loc}
+                        <div class="text-[10px] text-gray-500 mt-1 flex items-center justify-between gap-1.5 truncate">
+                            <span><i class="fa-solid fa-location-dot mr-1"></i> ${loc}</span>
+                            <i class="fa-solid fa-arrow-up-right-from-square text-[8px] text-gray-600"></i>
                         </div>
-                    </div>
+                    </a>
                 `;
             }).join('');
         }
@@ -389,14 +391,26 @@
             list.innerHTML = mails.map(mail => {
                 const snippet = mail.snippet || '(No message preview)';
                 const sender = mail.from || 'Unknown Sender';
+                
+                // Construct deep link to Gmail thread. Falls back to search in Demo mode.
+                let mailLink = "https://mail.google.com/mail/u/0/#inbox";
+                if (state.mode === 'live' && mail.threadId) {
+                    mailLink = `https://mail.google.com/mail/u/0/#inbox/${mail.threadId}`;
+                } else {
+                    mailLink = `https://mail.google.com/mail/u/0/#search/${encodeURIComponent(sender)}`;
+                }
+
                 return `
-                    <div class="p-3 bg-gray-900/50 hover:bg-gray-800/40 rounded-xl border border-gray-800/80 transition-all">
+                    <a href="${mailLink}" target="_blank" rel="noopener noreferrer" class="block p-3 bg-gray-900/50 hover:bg-gray-800/40 rounded-xl border border-gray-800/80 transition-all hover:border-red-500/30">
                         <div class="flex justify-between items-start gap-2 mb-1">
                             <span class="font-semibold text-[10px] text-red-300 truncate max-w-[80%]">${sender}</span>
-                            <span class="w-2 h-2 rounded-full bg-red-500 animate-pulse mt-1"></span>
+                            <div class="flex items-center gap-1.5">
+                                <span class="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
+                                <i class="fa-solid fa-arrow-up-right-from-square text-[8px] text-gray-500"></i>
+                            </div>
                         </div>
                         <p class="text-[10px] text-gray-400 leading-normal line-clamp-2">${snippet}</p>
-                    </div>
+                    </a>
                 `;
             }).join('');
         }
@@ -538,6 +552,8 @@
                         const from = fromHeader ? fromHeader.value.replace(/<.*>/, '').trim() : "Unknown";
                         
                         state.gmailThreads.push({
+                            id: md.id,
+                            threadId: md.threadId,
                             snippet: md.snippet,
                             from: from
                         });
