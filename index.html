@@ -74,19 +74,19 @@
         <!-- Main Dashboard Viewport -->
         <section class="flex-1 overflow-y-auto p-4 space-y-4 custom-scroll pb-24">
 
-            <!-- AI EXECUTIVE BRIEFING CARD (Premium Glowing Border Wrapper) -->
-            <article class="p-[1px] rounded-2xl bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 glow-purple relative overflow-hidden">
-                <div class="p-4 rounded-2xl bg-[#0e1324]/95 backdrop-blur-md h-full w-full">
-                    <div class="absolute -right-8 -top-8 w-24 h-24 bg-purple-600/10 rounded-full blur-xl"></div>
-                    
-                    <div class="flex justify-between items-center mb-3">
-                        <div class="flex items-center gap-2">
-                            <span class="p-1.5 rounded-lg bg-purple-500/20 text-purple-400 text-xs">
-                                <i class="fa-solid fa-wand-magic-sparkles"></i>
-                            </span>
-                            <h2 class="text-sm font-semibold text-purple-200">AI Daily Briefing</h2>
-                        </div>
-                        <div class="flex items-center gap-2">
+            <!-- GOOGLE RECONNECT BANNER -->
+            <div id="reconnectBanner" class="hidden p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-xs flex justify-between items-center text-amber-300 shadow-md">
+                <span class="flex items-center gap-2">
+                    <i class="fa-solid fa-triangle-exclamation animate-pulse text-amber-400"></i>
+                    <span>Google Authorization Expired</span>
+                </span>
+                <button onclick="initiateGoogleLogin()" class="bg-amber-500 hover:bg-amber-400 text-gray-950 px-3 py-1.5 rounded-xl font-bold transition-all shadow-md">
+                    Reconnect
+                </button>
+            </div>
+
+            <!-- AI EXECUTIVE BRIEFING CARD (Glows Purple when active) -->
+            <article class="p-4 rounded-2xl bg-gradient-to-br from-indigo-950/40 to-purple-950/20 border border-purple-500/20 glow-purple relative overflow-hidden">
                             <!-- Animated Waveform Visualizer -->
                             <div id="audioWaveform" class="hidden flex items-center gap-1 h-3.5 px-1 bg-purple-500/10 border border-purple-500/20 rounded-full">
                                 <span class="w-0.5 h-3 bg-purple-400 rounded-full origin-bottom animate-wave-1"></span>
@@ -278,15 +278,15 @@
 
         // Standard Demo / Simulated Database
         const mockCalendar = [
-            { summary: 'Client Strategy Kickoff', start: { dateTime: new Date(Date.now() + 2*3600*1000).toISOString() }, location: 'Boardroom A', htmlLink: 'https://calendar.google.com' },
-            { summary: 'Team Sync & Retrospective', start: { dateTime: new Date(Date.now() + 5*3600*1000).toISOString() }, location: 'Virtual (Teams)', htmlLink: 'https://calendar.google.com' },
-            { summary: 'Technical Roadmap Architecture Review', start: { dateTime: new Date(Date.now() + 24*3600*1000).toISOString() }, location: 'Virtual', htmlLink: 'https://calendar.google.com' }
+            { summary: 'Client Strategy Kickoff', start: { dateTime: new Date(Date.now() + 2*3600*1000).toISOString() }, location: 'Boardroom A' },
+            { summary: 'Team Sync & Retrospective', start: { dateTime: new Date(Date.now() + 5*3600*1000).toISOString() }, location: 'Virtual (Teams)' },
+            { summary: 'Technical Roadmap Architecture Review', start: { dateTime: new Date(Date.now() + 24*3600*1000).toISOString() }, location: 'Virtual' }
         ];
 
         const mockGmail = [
-            { id: '1', threadId: 'thread1', snippet: 'Urgent: Feedback needed on the architecture draft for the York transit app integration before EOD tomorrow.', from: 'sarah.engineering@company.com' },
-            { id: '2', threadId: 'thread2', snippet: 'Your weekly server metrics report. All microservices healthy, 99.98% uptime in production.', from: 'sysmon-alerts@internal.net' },
-            { id: '3', threadId: 'thread3', snippet: 'Reminder: Quarterly Review is scheduled for Friday. Please submit slide contributions.', from: 'executive-office@office.com' }
+            { snippet: 'Urgent: Feedback needed on the architecture draft for the York transit app integration before EOD tomorrow.', from: 'sarah.engineering@company.com' },
+            { snippet: 'Your weekly server metrics report. All microservices healthy, 99.98% uptime in production.', from: 'sysmon-alerts@internal.net' },
+            { snippet: 'Reminder: Quarterly Review is scheduled for Friday. Please submit slide contributions.', from: 'executive-office@office.com' }
         ];
 
         // Bootstrapping
@@ -317,6 +317,20 @@
             if (savedMod) state.workingModel = savedMod;
 
             updateModeUI();
+
+            // Silently check if a valid persistent Google access token is already cached
+            if (state.mode === 'live' && state.googleClientId) {
+                const savedToken = localStorage.getItem('google_access_token');
+                const savedExpiry = localStorage.getItem('google_token_expiry');
+
+                // If the token exists and is valid (with a 60-second buffer margin)
+                if (savedToken && savedExpiry && parseInt(savedExpiry) > (Date.now() + 60000)) {
+                    state.googleAccessToken = savedToken;
+                    fetchGoogleLiveAll();
+                } else {
+                    document.getElementById('reconnectBanner').classList.remove('hidden');
+                }
+            }
         }
 
         // Render functions
@@ -345,6 +359,21 @@
             state.mode = targetMode;
             localStorage.setItem('widget_mode', targetMode);
             updateModeUI();
+
+            const banner = document.getElementById('reconnectBanner');
+            if (targetMode === 'live') {
+                const savedToken = localStorage.getItem('google_access_token');
+                const savedExpiry = localStorage.getItem('google_token_expiry');
+                if (savedToken && savedExpiry && parseInt(savedExpiry) > (Date.now() + 60000)) {
+                    state.googleAccessToken = savedToken;
+                    fetchGoogleLiveAll();
+                } else {
+                    banner.classList.remove('hidden');
+                }
+            } else {
+                banner.classList.add('hidden');
+            }
+
             renderDashboard();
             showToast(`Switched to ${targetMode === 'live' ? 'Live Cloud Mode' : 'Simulated Demo Mode'}`);
         }
@@ -354,71 +383,22 @@
             renderGmail();
         }
 
-        /**
-         * Redirects the user directly into their native Calendar app with fallbacks
-         */
-        function openCalendarApp(calLink) {
-            const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-            const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
-            const fallbackLink = calLink || "https://calendar.google.com";
-
-            if (isMobile) {
-                if (isIOS) {
-                    // Try targeting official Google Calendar scheme
-                    window.location.href = "googlecalendar://";
-                    setTimeout(() => {
-                        window.open(fallbackLink, '_blank');
-                    }, 800);
-                } else {
-                    // Android Intent structure triggers native app directly
-                    window.location.href = "intent://#Intent;scheme=googlecalendar;package=com.google.android.calendar;end";
-                    setTimeout(() => {
-                        window.open(fallbackLink, '_blank');
-                    }, 800);
-                }
-            } else {
-                window.open(fallbackLink, '_blank');
-            }
-        }
-
-        /**
-         * Redirects the user directly into their native Gmail app with fallbacks
-         */
-        function openEmailApp(threadId, sender) {
-            const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-            const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
-            
-            let webLink = "https://mail.google.com/mail/u/0/#inbox";
-            if (state.mode === 'live' && threadId) {
-                webLink = `https://mail.google.com/mail/u/0/#inbox/${threadId}`;
-            } else {
-                webLink = `https://mail.google.com/mail/u/0/#search/${encodeURIComponent(sender)}`;
-            }
-
-            if (isMobile) {
-                if (isIOS) {
-                    // Attempt launch through native Gmail scheme
-                    window.location.href = "googlegmail://";
-                    setTimeout(() => {
-                        window.open(webLink, '_blank');
-                    }, 800);
-                } else {
-                    // Android Intent redirects to Gmail app
-                    window.location.href = "intent://#Intent;scheme=googlegmail;package=com.google.android.gm;end";
-                    setTimeout(() => {
-                        window.open(webLink, '_blank');
-                    }, 800);
-                }
-            } else {
-                window.open(webLink, '_blank');
-            }
-        }
-
         function renderCalendar() {
             const list = document.getElementById('calendarList');
             const count = document.getElementById('calendarCount');
-            const events = state.mode === 'live' ? state.calendarEvents : mockCalendar;
 
+            if (state.mode === 'live' && !state.googleAccessToken) {
+                count.textContent = 'Locked';
+                list.innerHTML = `
+                    <div class="text-center py-8 text-gray-500 italic text-[11px] flex flex-col items-center justify-center gap-2">
+                        <i class="fa-solid fa-lock text-gray-600 text-sm"></i>
+                        <span>Reconnect to load live calendar events.</span>
+                    </div>
+                `;
+                return;
+            }
+
+            const events = state.mode === 'live' ? state.calendarEvents : mockCalendar;
             count.textContent = `${events.length} Events`;
 
             if (events.length === 0) {
@@ -433,23 +413,21 @@
             list.innerHTML = events.map(ev => {
                 const title = ev.summary || 'Untitled Event';
                 const loc = ev.location || 'No location set';
-                const calLink = ev.htmlLink || 'https://calendar.google.com';
                 let timeStr = 'All Day';
                 if (ev.start && ev.start.dateTime) {
                     const d = new Date(ev.start.dateTime);
                     timeStr = d.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
                 }
                 return `
-                    <button onclick="openCalendarApp('${calLink}')" class="w-full text-left block p-3 bg-gray-900/50 hover:bg-gray-800/40 rounded-xl border border-gray-800/80 transition-all hover:border-blue-500/30">
+                    <div class="p-3 bg-gray-900/50 hover:bg-gray-800/40 rounded-xl border border-gray-800/80 transition-all">
                         <div class="flex justify-between items-start gap-2">
                             <span class="font-bold text-gray-200 text-xs truncate max-w-[75%]">${title}</span>
                             <span class="text-[10px] font-bold text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded">${timeStr}</span>
                         </div>
-                        <div class="text-[10px] text-gray-500 mt-1 flex items-center justify-between gap-1.5 truncate">
-                            <span><i class="fa-solid fa-location-dot mr-1"></i> ${loc}</span>
-                            <i class="fa-solid fa-arrow-up-right-from-square text-[8px] text-gray-600"></i>
+                        <div class="text-[10px] text-gray-500 mt-1 flex items-center gap-1.5 truncate">
+                            <i class="fa-solid fa-location-dot"></i> ${loc}
                         </div>
-                    </button>
+                    </div>
                 `;
             }).join('');
         }
@@ -457,8 +435,19 @@
         function renderGmail() {
             const list = document.getElementById('emailList');
             const count = document.getElementById('emailCount');
-            const mails = state.mode === 'live' ? state.gmailThreads : mockGmail;
 
+            if (state.mode === 'live' && !state.googleAccessToken) {
+                count.textContent = 'Locked';
+                list.innerHTML = `
+                    <div class="text-center py-8 text-gray-500 italic text-[11px] flex flex-col items-center justify-center gap-2">
+                        <i class="fa-solid fa-lock text-gray-600 text-sm"></i>
+                        <span>Reconnect to load live unread emails.</span>
+                    </div>
+                `;
+                return;
+            }
+
+            const mails = state.mode === 'live' ? state.gmailThreads : mockGmail;
             count.textContent = `${mails.length} Unread`;
 
             if (mails.length === 0) {
@@ -473,19 +462,14 @@
             list.innerHTML = mails.map(mail => {
                 const snippet = mail.snippet || '(No message preview)';
                 const sender = mail.from || 'Unknown Sender';
-                const tId = mail.threadId || '';
-
                 return `
-                    <button onclick="openEmailApp('${tId}', '${sender}')" class="w-full text-left block p-3 bg-gray-900/50 hover:bg-gray-800/40 rounded-xl border border-gray-800/80 transition-all hover:border-red-500/30">
+                    <div class="p-3 bg-gray-900/50 hover:bg-gray-800/40 rounded-xl border border-gray-800/80 transition-all">
                         <div class="flex justify-between items-start gap-2 mb-1">
                             <span class="font-semibold text-[10px] text-red-300 truncate max-w-[80%]">${sender}</span>
-                            <div class="flex items-center gap-1.5">
-                                <span class="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse"></span>
-                                <i class="fa-solid fa-arrow-up-right-from-square text-[8px] text-gray-500"></i>
-                            </div>
+                            <span class="w-2 h-2 rounded-full bg-red-500 animate-pulse mt-1"></span>
                         </div>
                         <p class="text-[10px] text-gray-400 leading-normal line-clamp-2">${snippet}</p>
-                    </button>
+                    </div>
                 `;
             }).join('');
         }
@@ -494,7 +478,6 @@
         async function fetchNewsFeeds() {
             const list = document.getElementById('newsList');
             try {
-                // Using bbc world feed converted safely to standard JSON
                 const res = await fetch('https://api.rss2json.com/v1/api.json?rss_url=https%3A%2F%2Ffeeds.bbci.co.uk%2Fnews%2Fworld%2Frss.xml');
                 const data = await res.json();
                 
@@ -508,7 +491,6 @@
                     throw new Error("Empty list");
                 }
             } catch (err) {
-                // Fallback hardcoded if RSS feed parser has hiccup
                 state.newsStories = [
                     { title: "Global financial markets adjust to changing regulatory outlooks across Europe", source: "Financial Digest" },
                     { title: "Decarbonization target deadlines prompt shift toward advanced solar infrastructure solutions", source: "Global Echo" },
@@ -585,6 +567,13 @@
                 callback: (tokenResponse) => {
                     if (tokenResponse && tokenResponse.access_token) {
                         state.googleAccessToken = tokenResponse.access_token;
+                        
+                        // Cache token & exact expiration timestamp securely to survive app restarts
+                        localStorage.setItem('google_access_token', tokenResponse.access_token);
+                        const expiry = Date.now() + (tokenResponse.expires_in * 1000);
+                        localStorage.setItem('google_token_expiry', expiry);
+
+                        document.getElementById('reconnectBanner').classList.add('hidden');
                         showToast("Authenticated with Google! Fetching items...", "success");
                         fetchGoogleLiveAll();
                     }
@@ -597,13 +586,29 @@
             client.requestAccessToken();
         }
 
+        // Handle unauthorized / expired requests gracefully
+        function handleAuthError() {
+            state.googleAccessToken = null;
+            localStorage.removeItem('google_access_token');
+            localStorage.removeItem('google_token_expiry');
+            document.getElementById('reconnectBanner').classList.remove('hidden');
+            renderDashboard();
+            showToast("Google authorization expired. Reconnect needed.", "error");
+        }
+
         async function fetchGoogleLiveAll() {
             if (!state.googleAccessToken) return;
+            document.getElementById('reconnectBanner').classList.add('hidden');
             try {
                 // Fetch Calendar
                 const calRes = await fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events?maxResults=8&orderBy=startTime&singleEvents=true&timeMin=' + new Date().toISOString(), {
                     headers: { 'Authorization': `Bearer ${state.googleAccessToken}` }
                 });
+                
+                if (calRes.status === 401) {
+                    handleAuthError();
+                    return;
+                }
                 const calData = await calRes.json();
                 if (calData.items) state.calendarEvents = calData.items;
 
@@ -611,6 +616,10 @@
                 const mailRes = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages?q=is:unread&maxResults=8', {
                     headers: { 'Authorization': `Bearer ${state.googleAccessToken}` }
                 });
+                if (mailRes.status === 401) {
+                    handleAuthError();
+                    return;
+                }
                 const mailData = await mailRes.json();
                 
                 state.gmailThreads = [];
@@ -619,6 +628,10 @@
                         const msgDetail = await fetch(`https://gmail.googleapis.com/gmail/v1/users/me/messages/${msg.id}`, {
                             headers: { 'Authorization': `Bearer ${state.googleAccessToken}` }
                         });
+                        if (msgDetail.status === 401) {
+                            handleAuthError();
+                            return;
+                        }
                         const md = await msgDetail.json();
                         
                         // Extract basic headers
@@ -627,8 +640,6 @@
                         const from = fromHeader ? fromHeader.value.replace(/<.*>/, '').trim() : "Unknown";
                         
                         state.gmailThreads.push({
-                            id: md.id,
-                            threadId: md.threadId,
                             snippet: md.snippet,
                             from: from
                         });
@@ -646,6 +657,9 @@
             state.googleAccessToken = null;
             state.calendarEvents = [];
             state.gmailThreads = [];
+            localStorage.removeItem('google_access_token');
+            localStorage.removeItem('google_token_expiry');
+            document.getElementById('reconnectBanner').classList.add('hidden');
             renderDashboard();
             showToast("Logged out of Google accounts.");
         }
@@ -762,66 +776,6 @@
             return resData.candidates?.[0]?.content?.parts?.[0]?.text;
         }
 
-        /**
-         * Beautifully formats raw synthesis text into structured dashboard sections
-         */
-        function parseAndFormatBriefing(text) {
-            // Split by section headers (outlook, priorities, global impact)
-            const sections = text.split(/(OUTLOOK|PRIORITIES|GLOBAL IMPACT):/i);
-            
-            if (sections.length < 3) {
-                // Fallback to plain formatting if structure is abnormal
-                return `<p class="text-gray-300 leading-relaxed">${text.replace(/\n/g, '<br>')}</p>`;
-            }
-
-            let formattedHtml = '';
-            
-            for (let i = 1; i < sections.length; i += 2) {
-                const title = sections[i].toUpperCase().trim();
-                let content = sections[i+1] ? sections[i+1].trim() : '';
-                
-                let iconHtml = '';
-                let badgeClass = '';
-                
-                if (title === 'OUTLOOK') {
-                    iconHtml = '<i class="fa-regular fa-compass mr-1.5 text-indigo-400"></i>';
-                    badgeClass = 'bg-indigo-500/10 text-indigo-300 border border-indigo-500/20';
-                    content = `<p class="text-[11px] text-gray-300 mt-1.5 leading-relaxed">${content}</p>`;
-                } else if (title === 'PRIORITIES') {
-                    iconHtml = '<i class="fa-solid fa-list-check mr-1.5 text-rose-400"></i>';
-                    badgeClass = 'bg-rose-500/10 text-rose-300 border border-rose-500/20';
-                    
-                    // Format bullets
-                    const bullets = content.split('\n').filter(b => b.trim().length > 0);
-                    content = `<ul class="space-y-1.5 mt-2">` + 
-                        bullets.map(b => {
-                            const cleanBullet = b.replace(/^[-*•]\s*/, '');
-                            return `
-                                <li class="flex items-start gap-2 text-[11px] text-gray-300">
-                                    <span class="text-rose-400 mt-1"><i class="fa-solid fa-circle-exclamation text-[8px]"></i></span>
-                                    <span>${cleanBullet}</span>
-                                </li>
-                            `;
-                        }).join('') + `</ul>`;
-                } else if (title === 'GLOBAL IMPACT') {
-                    iconHtml = '<i class="fa-solid fa-earth-americas mr-1.5 text-emerald-400"></i>';
-                    badgeClass = 'bg-emerald-500/10 text-emerald-300 border border-emerald-500/20';
-                    content = `<p class="text-[11px] text-gray-300 mt-1.5 leading-relaxed">${content}</p>`;
-                }
-                
-                formattedHtml += `
-                    <div class="p-3 rounded-xl bg-gray-950/40 border border-white/5 space-y-1 backdrop-blur-sm transition-all hover:bg-gray-900/20">
-                        <span class="inline-flex items-center px-2 py-0.5 text-[9px] font-bold tracking-wider uppercase rounded-md ${badgeClass}">
-                            ${iconHtml} ${title}
-                        </span>
-                        ${content}
-                    </div>
-                `;
-            }
-            
-            return `<div class="space-y-3">${formattedHtml}</div>`;
-        }
-
         // EXEC BRIEFING SYNTHESIS CALL
         async function synthesizeDailyOverview() {
             const out = document.getElementById('briefingContent');
@@ -843,10 +797,10 @@
             const systemCommand = `
 You are an elite, highly precise personal executive assistant. 
 Synthesize the user's raw data into a brief, high-impact Daily Executive Briefing (Max 120 words).
-You MUST structure your reply into EXACTLY three parts starting with these headers:
-OUTLOOK: (One short sentence synthesizing key agenda timing issues)
-PRIORITIES: (Bullet points summarizing key followups needed for important unread emails)
-GLOBAL IMPACT: (One sentence describing how today's major news interacts with their daily focus)
+Structure it into exactly three parts:
+1. "OUTLOOK" (One short sentence synthesizing key agenda timing issues).
+2. "PRIORITIES" (Bullet points summarizing key followups needed for important unread emails).
+3. "GLOBAL IMPACT" (One sentence describing how today's major news interacts with their daily focus).
 
 Here is the user's raw feed:
 ---
@@ -862,7 +816,7 @@ ${newsString || 'No live world news available.'}
 
             try {
                 const responseText = await runGeminiCommand(systemCommand);
-                out.innerHTML = parseAndFormatBriefing(responseText);
+                out.innerHTML = `<div class="space-y-2 whitespace-pre-line">${responseText}</div>`;
                 
                 // Store state and display listen audio button
                 state.synthesizedText = responseText;
@@ -931,13 +885,11 @@ ${structuredDataString}
         async function readBriefingAloud() {
             if (!state.synthesizedText) return;
             const ttsBtn = document.getElementById('ttsBtn');
-            const waveform = document.getElementById('audioWaveform');
             
             // Toggle Stop if playing
             if (state.audioPlayer && !state.audioPlayer.paused) {
                 state.audioPlayer.pause();
                 ttsBtn.innerHTML = `<i class="fa-solid fa-volume-high"></i> Listen`;
-                waveform.classList.add('hidden');
                 return;
             }
 
@@ -991,18 +943,15 @@ ${structuredDataString}
                 state.audioPlayer = new Audio(blobUrl);
                 state.audioPlayer.play();
 
-                ttsBtn.innerHTML = `<i class="fa-solid fa-circle-stop text-red-400"></i> Stop`;
-                waveform.classList.remove('hidden');
+                ttsBtn.innerHTML = `<i class="fa-solid fa-circle-stop animate-pulse text-red-400"></i> Stop`;
                 
                 state.audioPlayer.onended = () => {
                     ttsBtn.innerHTML = `<i class="fa-solid fa-volume-high"></i> Listen`;
-                    waveform.classList.add('hidden');
                 };
 
             } catch (err) {
                 showToast("Voice synthesizer failed: " + err.message, "error");
                 ttsBtn.innerHTML = `<i class="fa-solid fa-volume-high"></i> Listen`;
-                waveform.classList.add('hidden');
             }
         }
 
