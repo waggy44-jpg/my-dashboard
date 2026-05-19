@@ -2,8 +2,12 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Smart Widget Dashboard</title>
+    
+    <!-- Inline Self-Contained PWA Manifest to enable standalone fullscreen mode without address bars when added to home screen -->
+    <link rel="manifest" href='data:application/manifest+json,{"name":"Executive Widget Hub","short_name":"Exec Hub","start_url":".","display":"standalone","background_color":"#0b0f19","theme_color":"#0b0f19","orientation":"portrait","icons":[{"src":"https://placehold.co/192x192/8b5cf6/ffffff?text=EH","sizes":"192x192","type":"image/png"}]}' />
+    
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- FontAwesome for Widget Icons -->
@@ -16,6 +20,8 @@
         body {
             font-family: 'Plus Jakarta Sans', sans-serif;
             background-color: #0b0f19;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
         }
         .widget-blur {
             background: rgba(17, 24, 39, 0.7);
@@ -24,10 +30,10 @@
             border: 1px solid rgba(255, 255, 255, 0.08);
         }
         .glow-purple {
-            box-shadow: 0 0 20px rgba(139, 92, 246, 0.15);
+            box-shadow: 0 0 25px rgba(139, 92, 246, 0.2);
         }
         .glow-green {
-            box-shadow: 0 0 20px rgba(16, 185, 129, 0.15);
+            box-shadow: 0 0 25px rgba(16, 185, 129, 0.2);
         }
         /* Custom Scrollbar for clean widget look */
         .custom-scroll::-webkit-scrollbar {
@@ -41,32 +47,36 @@
             border-radius: 10px;
         }
         
-        /* Interactive Audio Waveform animation */
+        /* Audio visualizer wave animation */
         @keyframes wave {
-            0%, 100% { transform: scaleY(0.4); }
-            50% { transform: scaleY(1.4); }
+            0%, 100% { transform: scaleY(0.3); }
+            50% { transform: scaleY(1.5); }
         }
-        .animate-wave-1 { animation: wave 1s ease-in-out infinite; }
-        .animate-wave-2 { animation: wave 0.8s ease-in-out infinite 0.15s; }
-        .animate-wave-3 { animation: wave 1.2s ease-in-out infinite 0.3s; }
-        .animate-wave-4 { animation: wave 0.9s ease-in-out infinite 0.45s; }
+        .wave-bar {
+            animation: wave 1s ease-in-out infinite;
+        }
     </style>
 </head>
-<body class="text-gray-100 min-h-screen flex justify-center p-0 sm:p-4 overflow-x-hidden">
+<body class="text-gray-100 min-h-screen flex justify-center p-0 sm:p-4 overflow-x-hidden select-none">
 
-    <!-- Mobile Screen Wrapper -->
-    <main class="w-full max-w-md min-h-screen sm:min-h-[850px] sm:max-h-[900px] flex flex-col justify-between widget-blur sm:rounded-[40px] shadow-2xl overflow-hidden relative">
+    <!-- Mobile Screen Wrapper (PWA Adaptive Dimensions) -->
+    <main class="w-full max-w-md min-h-screen sm:min-h-[850px] sm:max-h-[900px] flex flex-col justify-between widget-blur sm:rounded-[40px] shadow-2xl overflow-hidden relative pb-safe">
         
-        <!-- Status Bar Space / Top Header -->
+        <!-- Status Bar Space / Top Interactive Header -->
         <header class="p-4 pt-6 pb-2 flex justify-between items-center border-b border-gray-800/50">
             <div class="flex items-center gap-2">
                 <div class="w-3 h-3 rounded-full bg-indigo-500 animate-pulse"></div>
                 <h1 class="text-lg font-bold tracking-tight bg-gradient-to-r from-indigo-400 to-purple-400 bg-clip-text text-transparent">EXECUTIVE HUB</h1>
             </div>
-            <div class="flex items-center gap-3">
-                <span id="connectionBadge" class="text-xs px-2.5 py-1 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20 font-medium">Demo Mode</span>
-                <button onclick="openSettings()" class="text-gray-400 hover:text-white transition-colors p-1.5 rounded-lg hover:bg-gray-800/50">
-                    <i class="fa-solid fa-sliders text-lg"></i>
+            
+            <div class="flex items-center gap-2">
+                <!-- Direct Fullscreen Toggle Tool -->
+                <button onclick="toggleAppFullscreen()" title="Toggle Fullscreen" class="text-gray-400 hover:text-white transition-all p-1.5 rounded-lg hover:bg-gray-800/50 active:scale-95">
+                    <i id="fullscreenIcon" class="fa-solid fa-expand text-sm"></i>
+                </button>
+                <span id="connectionBadge" class="text-[10px] px-2.5 py-1 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20 font-bold tracking-wide uppercase">Demo Mode</span>
+                <button onclick="openSettings()" class="text-gray-400 hover:text-white transition-all p-1.5 rounded-lg hover:bg-gray-800/50 active:scale-95">
+                    <i class="fa-solid fa-sliders text-sm"></i>
                 </button>
             </div>
         </header>
@@ -74,58 +84,74 @@
         <!-- Main Dashboard Viewport -->
         <section class="flex-1 overflow-y-auto p-4 space-y-4 custom-scroll pb-24">
 
-            <!-- GOOGLE RECONNECT BANNER -->
-            <div id="reconnectBanner" class="hidden p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-xs flex justify-between items-center text-amber-300 shadow-md">
-                <span class="flex items-center gap-2">
-                    <i class="fa-solid fa-triangle-exclamation animate-pulse text-amber-400"></i>
-                    <span>Google Authorization Expired</span>
-                </span>
-                <button onclick="initiateGoogleLogin()" class="bg-amber-500 hover:bg-amber-400 text-gray-950 px-3 py-1.5 rounded-xl font-bold transition-all shadow-md">
+            <!-- AUTO LOGIN RECONNECT WARNING BANNER (Shows only when session needs clickless renewal) -->
+            <div id="reconnectBanner" class="hidden p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-xs flex justify-between items-center animate-fade-in">
+                <div class="flex items-center gap-2">
+                    <i class="fa-solid fa-key text-amber-400 animate-bounce"></i>
+                    <span class="text-gray-300 font-medium">Session expired. Reconnecting...</span>
+                </div>
+                <button onclick="silentAutoAuthentication(true)" class="bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 px-3 py-1 rounded-lg font-bold text-[10px] uppercase transition-all active:scale-95">
                     Reconnect
                 </button>
             </div>
 
-            <!-- AI EXECUTIVE BRIEFING CARD (Glows Purple when active) -->
-            <article class="p-4 rounded-2xl bg-gradient-to-br from-indigo-950/40 to-purple-950/20 border border-purple-500/20 glow-purple relative overflow-hidden">
-                            <!-- Animated Waveform Visualizer -->
-                            <div id="audioWaveform" class="hidden flex items-center gap-1 h-3.5 px-1 bg-purple-500/10 border border-purple-500/20 rounded-full">
-                                <span class="w-0.5 h-3 bg-purple-400 rounded-full origin-bottom animate-wave-1"></span>
-                                <span class="w-0.5 h-3 bg-purple-400 rounded-full origin-bottom animate-wave-2"></span>
-                                <span class="w-0.5 h-3 bg-purple-400 rounded-full origin-bottom animate-wave-3"></span>
-                                <span class="w-0.5 h-3 bg-purple-400 rounded-full origin-bottom animate-wave-4"></span>
+            <!-- PREMIUM GLOWING GLASSMORPHIC AI BRIEFING CENTER -->
+            <article class="p-0.5 rounded-3xl bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 glow-purple relative overflow-hidden transition-all active:scale-[0.99]">
+                <div class="bg-gray-950/90 rounded-[22px] p-4 space-y-3">
+                    <div class="flex justify-between items-start">
+                        <div class="flex items-center gap-2">
+                            <span class="p-1.5 rounded-lg bg-gradient-to-r from-purple-500 to-pink-500 text-white text-xs shadow-md">
+                                <i class="fa-solid fa-wand-magic-sparkles"></i>
+                            </span>
+                            <div>
+                                <h2 class="text-xs font-bold text-gray-300 uppercase tracking-wider">AI Executive Assistant</h2>
+                                <p class="text-[9px] text-gray-500">Live Cognitive Synthesis</p>
                             </div>
-                            
-                            <button id="ttsBtn" onclick="readBriefingAloud()" class="hidden text-xs bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 px-2.5 py-1 rounded-lg font-medium transition-all flex items-center gap-1.5">
+                        </div>
+                        <div class="flex items-center gap-1.5">
+                            <button id="ttsBtn" onclick="readBriefingAloud()" class="hidden text-[10px] bg-purple-500/10 hover:bg-purple-500/20 text-purple-300 border border-purple-500/20 px-2.5 py-1 rounded-lg font-bold transition-all flex items-center gap-1.5 active:scale-90">
                                 <i class="fa-solid fa-volume-high"></i> Listen
                             </button>
-                            <button onclick="synthesizeDailyOverview()" class="text-xs bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1 rounded-lg font-medium transition-all shadow-md">
+                            <button onclick="synthesizeDailyOverview()" class="text-[10px] bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white px-3.5 py-1 rounded-lg font-bold transition-all shadow-lg shadow-purple-950/30 active:scale-90">
                                 Synthesize
                             </button>
                         </div>
                     </div>
 
-                    <!-- Briefing Output Screen -->
-                    <div id="briefingContent" class="text-xs text-gray-300 leading-relaxed bg-black/40 p-3.5 rounded-xl border border-white/5 min-h-[100px] flex flex-col justify-center gap-3">
-                        <p class="text-gray-400 italic text-center">Tap "Synthesize" to generate your custom AI Morning Briefing across your schedule, emails, and global headlines.</p>
+                    <!-- Voice Synthesis Active Indicator (Waveform animations) -->
+                    <div id="waveformContainer" class="hidden flex items-center justify-center gap-1 bg-purple-950/20 py-2 rounded-xl border border-purple-500/10">
+                        <span class="text-[9px] text-purple-400 mr-2 font-bold tracking-widest uppercase">Streaming Audio</span>
+                        <div class="w-1 h-3 bg-purple-400 rounded-full wave-bar" style="animation-delay: 0.1s"></div>
+                        <div class="w-1 h-5 bg-purple-400 rounded-full wave-bar" style="animation-delay: 0.3s"></div>
+                        <div class="w-1 h-4 bg-purple-400 rounded-full wave-bar" style="animation-delay: 0.2s"></div>
+                        <div class="w-1 h-6 bg-purple-400 rounded-full wave-bar" style="animation-delay: 0.5s"></div>
+                        <div class="w-1 h-3 bg-purple-400 rounded-full wave-bar" style="animation-delay: 0.4s"></div>
+                    </div>
+
+                    <!-- Elegant Rendered Briefing Interface -->
+                    <div id="briefingContent" class="text-xs text-gray-300 leading-relaxed bg-black/40 p-3.5 rounded-xl border border-white/5 min-h-[60px] flex flex-col justify-center">
+                        <p class="text-gray-400 italic text-center text-[11px] leading-relaxed">Tap "Synthesize" to generate your custom AI Morning Briefing across your schedule, emails, and global headlines.</p>
                     </div>
                 </div>
             </article>
 
             <!-- CHAT WITH HUB / LIVE SEARCH INPUT -->
-            <div class="relative">
-                <input id="geminiSearchInput" type="text" placeholder="Ask Gemini (e.g., 'Do I have meetings in York?')" class="w-full bg-gray-900/60 border border-gray-800 text-xs text-white rounded-xl py-3 pl-4 pr-10 focus:outline-none focus:ring-1 focus:ring-purple-500 transition-all placeholder:text-gray-500">
-                <button onclick="askGeminiSearch()" class="absolute right-3 top-1/2 -translate-y-1/2 text-purple-400 hover:text-purple-300 p-1">
+            <div class="relative active:scale-[0.99] transition-transform">
+                <input id="geminiSearchInput" type="text" placeholder="Ask Gemini (e.g., 'What are my priorities?')" class="w-full bg-gray-900/60 border border-gray-800 text-xs text-white rounded-xl py-3 pl-4 pr-10 focus:outline-none focus:ring-1 focus:ring-purple-500 transition-all placeholder:text-gray-500 shadow-inner">
+                <button onclick="askGeminiSearch()" class="absolute right-3 top-1/2 -translate-y-1/2 text-purple-400 hover:text-purple-300 p-1 active:scale-90 transition-transform">
                     <i class="fa-solid fa-paper-plane text-xs"></i>
                 </button>
             </div>
 
-            <!-- SEARCH RESULTS PANEL (Hidden by default) -->
-            <div id="searchResultsPanel" class="hidden p-3.5 rounded-xl bg-gray-900/90 border border-purple-500/30 text-xs">
-                <div class="flex justify-between items-center mb-2 border-b border-gray-800 pb-1.5">
-                    <span class="font-bold text-purple-300 flex items-center gap-1.5"><i class="fa-solid fa-brain"></i> Gemini Response</span>
-                    <button onclick="closeSearchResults()" class="text-gray-500 hover:text-gray-300"><i class="fa-solid fa-xmark"></i></button>
+            <!-- CHAT RESPONSE OVERLAY -->
+            <div id="searchResultsPanel" class="hidden p-4 rounded-2xl bg-gray-950 border border-purple-500/30 text-xs shadow-xl animate-fade-in">
+                <div class="flex justify-between items-center mb-2.5 border-b border-gray-900 pb-2">
+                    <span class="font-bold text-purple-300 flex items-center gap-1.5">
+                        <i class="fa-solid fa-brain"></i> Gemini Cognitive Engine
+                    </span>
+                    <button onclick="closeSearchResults()" class="text-gray-500 hover:text-gray-300 p-1 rounded-lg"><i class="fa-solid fa-xmark"></i></button>
                 </div>
-                <div id="searchResultsContent" class="text-gray-300 space-y-2 whitespace-pre-line leading-relaxed"></div>
+                <div id="searchResultsContent" class="text-gray-300 space-y-2 whitespace-pre-line leading-relaxed text-[11px]"></div>
             </div>
 
             <!-- TWO-COLUMN RESPONSIVE GRID FOR CALENDAR & GMAIL -->
@@ -138,9 +164,9 @@
                             <span class="p-1.5 rounded-lg bg-blue-500/10 text-blue-400 text-xs">
                                 <i class="fa-regular fa-calendar-days"></i>
                             </span>
-                            <h3 class="text-xs font-semibold uppercase tracking-wider text-gray-400">Calendar Agenda</h3>
+                            <h3 class="text-[11px] font-bold uppercase tracking-wider text-gray-400">Calendar Agenda</h3>
                         </div>
-                        <span id="calendarCount" class="text-[10px] px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400 font-semibold">0 Events</span>
+                        <span id="calendarCount" class="text-[9px] px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400 font-bold tracking-wider">0 Events</span>
                     </div>
                     <div id="calendarList" class="flex-1 overflow-y-auto space-y-2.5 pr-1 custom-scroll">
                         <!-- Loaded dynamically -->
@@ -154,9 +180,9 @@
                             <span class="p-1.5 rounded-lg bg-red-500/10 text-red-400 text-xs">
                                 <i class="fa-regular fa-envelope"></i>
                             </span>
-                            <h3 class="text-xs font-semibold uppercase tracking-wider text-gray-400">Unread Mail</h3>
+                            <h3 class="text-[11px] font-bold uppercase tracking-wider text-gray-400">Unread Inbox</h3>
                         </div>
-                        <span id="emailCount" class="text-[10px] px-2 py-0.5 rounded-full bg-red-500/10 text-red-400 font-semibold">0 New</span>
+                        <span id="emailCount" class="text-[9px] px-2 py-0.5 rounded-full bg-red-500/10 text-red-400 font-bold tracking-wider">0 New</span>
                     </div>
                     <div id="emailList" class="flex-1 overflow-y-auto space-y-2.5 pr-1 custom-scroll">
                         <!-- Loaded dynamically -->
@@ -165,17 +191,17 @@
 
             </div>
 
-            <!-- WORLD NEWS WIDGET (Top 5 Global Stories) -->
+            <!-- WORLD NEWS WIDGET (Fully Interactive & Tapable Articles) -->
             <section class="p-4 rounded-2xl bg-gray-900/40 border border-gray-800">
                 <div class="flex justify-between items-center mb-4">
                     <div class="flex items-center gap-2">
                         <span class="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-400 text-xs">
                             <i class="fa-solid fa-globe"></i>
                         </span>
-                        <h3 class="text-xs font-semibold uppercase tracking-wider text-gray-400">Top Global Briefing</h3>
+                        <h3 class="text-[11px] font-bold uppercase tracking-wider text-gray-400">Top Global Briefing</h3>
                     </div>
-                    <span class="text-[10px] text-gray-500 flex items-center gap-1">
-                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block animate-pulse"></span> Live News
+                    <span class="text-[9px] text-gray-500 flex items-center gap-1">
+                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block animate-pulse"></span> BBC Live
                     </span>
                 </div>
                 <div id="newsList" class="space-y-3.5">
@@ -186,63 +212,62 @@
         </section>
 
         <!-- SETTINGS SLIDE-UP MODAL PANEL -->
-        <section id="settingsModal" class="hidden absolute inset-0 bg-black/90 backdrop-blur-md z-50 flex flex-col justify-end">
-            <!-- Modal Clickaway background -->
+        <section id="settingsModal" class="hidden absolute inset-0 bg-black/95 backdrop-blur-md z-50 flex flex-col justify-end">
             <div class="absolute inset-0 -z-10" onclick="closeSettings()"></div>
             
-            <div class="bg-gray-950 border-t border-gray-800 rounded-t-[30px] p-6 space-y-6 max-h-[85%] overflow-y-auto custom-scroll">
+            <div class="bg-gray-950 border-t border-gray-800 rounded-t-[30px] p-6 space-y-6 max-h-[85%] overflow-y-auto custom-scroll shadow-2xl">
                 
                 <div class="flex justify-between items-center pb-3 border-b border-gray-900">
                     <h3 class="font-bold text-base flex items-center gap-2 text-white">
                         <i class="fa-solid fa-gear text-purple-400"></i> Widget Settings
                     </h3>
-                    <button onclick="closeSettings()" class="text-gray-400 hover:text-white text-lg px-2"><i class="fa-solid fa-xmark"></i></button>
+                    <button onclick="closeSettings()" class="text-gray-400 hover:text-white text-lg px-2 active:scale-90"><i class="fa-solid fa-xmark"></i></button>
                 </div>
 
-                <!-- Live Mode Toggle -->
+                <!-- Integration Mode Toggle -->
                 <div class="space-y-2">
-                    <label class="block text-xs font-semibold text-gray-400 uppercase">Integration Mode</label>
+                    <label class="block text-[10px] font-bold tracking-wider text-gray-400 uppercase">Integration Mode</label>
                     <div class="grid grid-cols-2 gap-2 bg-gray-900 p-1 rounded-xl border border-gray-800">
-                        <button id="modeDemoBtn" onclick="toggleMode('demo')" class="py-2 text-xs font-semibold rounded-lg transition-all bg-gray-800 text-white">Demo Simulated Data</button>
-                        <button id="modeLiveBtn" onclick="toggleMode('live')" class="py-2 text-xs font-semibold rounded-lg transition-all text-gray-400">Live Google APIs</button>
+                        <button id="modeDemoBtn" onclick="toggleMode('demo')" class="py-2.5 text-xs font-semibold rounded-lg transition-all active:scale-95 bg-gray-800 text-white">Demo Simulated Data</button>
+                        <button id="modeLiveBtn" onclick="toggleMode('live')" class="py-2.5 text-xs font-semibold rounded-lg transition-all active:scale-95 text-gray-400">Live Google APIs</button>
                     </div>
                 </div>
 
-                <!-- Google Credentials -->
+                <!-- Google OAuth Credentials Config -->
                 <div id="googleCredSection" class="hidden space-y-3">
-                    <label class="block text-xs font-semibold text-gray-400 uppercase">OAuth Client ID</label>
+                    <label class="block text-[10px] font-bold tracking-wider text-gray-400 uppercase">OAuth Client ID</label>
                     <input id="googleClientId" type="text" placeholder="Copy paste your .apps.googleusercontent.com Client ID" class="w-full bg-gray-900 border border-gray-800 rounded-xl px-4 py-3 text-xs text-white focus:ring-1 focus:ring-blue-500 focus:outline-none">
-                    <p class="text-[10px] text-gray-500 leading-normal">
-                        To fetch private emails and calendar items, complete Phase F in your Setup Guide to generate this client credentials string.
+                    <p class="text-[9px] text-gray-500 leading-normal">
+                        Your configuration is saved directly in your phone's browser cache. It will automatically re-authenticate on revisit.
                     </p>
                     <div class="flex gap-2">
-                        <button id="googleAuthBtn" onclick="initiateGoogleLogin()" class="w-full py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-semibold rounded-xl text-xs transition-colors">
+                        <button id="googleAuthBtn" onclick="initiateGoogleLogin()" class="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl text-xs transition-colors active:scale-95 shadow-lg shadow-blue-950/40">
                             <i class="fa-brands fa-google mr-2"></i> Save & Authorize
                         </button>
-                        <button onclick="logoutGoogle()" class="px-4 py-2.5 bg-red-950/20 text-red-400 border border-red-950 rounded-xl text-xs font-semibold hover:bg-red-950/40">
+                        <button onclick="logoutGoogle()" class="px-4 py-3 bg-red-950/20 text-red-400 border border-red-950 rounded-xl text-xs font-semibold hover:bg-red-950/40 active:scale-95">
                             Log Out
                         </button>
                     </div>
                 </div>
 
-                <!-- Gemini API Key Integration (AI System) -->
+                <!-- Gemini AI Config -->
                 <div class="space-y-3 p-4 bg-purple-950/10 border border-purple-900/30 rounded-2xl glow-purple">
-                    <label class="block text-xs font-semibold text-purple-300 uppercase flex items-center gap-1.5">
+                    <label class="block text-xs font-bold text-purple-300 uppercase flex items-center gap-1.5">
                         <i class="fa-solid fa-brain"></i> Gemini API Key
                     </label>
-                    <input id="geminiApiKey" type="password" placeholder="AIzaSy..." class="w-full bg-gray-900 border border-purple-900/30 rounded-xl px-4 py-3 text-xs text-white focus:ring-1 focus:ring-purple-500 focus:outline-none placeholder:text-gray-600">
+                    <input id="geminiApiKey" type="password" placeholder="AIzaSy..." class="w-full bg-gray-900 border border-purple-900/30 rounded-xl px-4 py-3 text-xs text-white focus:ring-1 focus:ring-purple-500 focus:outline-none placeholder:text-gray-700">
                     
-                    <div class="flex gap-2">
-                        <button onclick="saveSettingsKeys()" class="w-full py-2 bg-purple-600 hover:bg-purple-500 text-white font-semibold rounded-xl text-xs transition-colors">
+                    <div class="grid grid-cols-2 gap-2">
+                        <button onclick="saveSettingsKeys()" class="py-2.5 bg-purple-600 hover:bg-purple-500 text-white font-bold rounded-xl text-xs transition-colors active:scale-95 shadow-md shadow-purple-950/30">
                             Save Key
                         </button>
-                        <button id="btnTestKey" onclick="testGeminiDiagnostics()" class="w-full py-2 bg-gray-900 hover:bg-gray-800 text-purple-300 border border-purple-900/40 font-semibold rounded-xl text-xs transition-colors">
+                        <button id="btnTestKey" onclick="testGeminiDiagnostics()" class="py-2.5 bg-gray-900 hover:bg-gray-800 text-purple-300 border border-purple-900/40 font-bold rounded-xl text-xs transition-colors active:scale-95">
                             Test Key
                         </button>
                     </div>
 
-                    <!-- Live Debug Diagnostics Box -->
-                    <div id="diagnosticsBox" class="hidden text-[10px] font-mono p-3 bg-black rounded-xl border border-white/5 space-y-1 max-h-[150px] overflow-y-auto custom-scroll text-gray-400">
+                    <!-- Debug Logs Console -->
+                    <div id="diagnosticsBox" class="hidden text-[9px] font-mono p-3 bg-black rounded-xl border border-white/5 space-y-1 max-h-[140px] overflow-y-auto custom-scroll text-gray-400">
                         <p class="text-purple-400 font-bold border-b border-gray-900 pb-1 mb-1">Diagnostic Probe Engine:</p>
                         <div id="diagnosticsLog"></div>
                     </div>
@@ -251,58 +276,83 @@
             </div>
         </section>
 
-        <!-- Global Toast Alert Message -->
-        <div id="toast" class="hidden fixed bottom-6 left-1/2 -translate-x-1/2 px-4 py-2.5 bg-gray-900 border border-gray-800 rounded-xl shadow-2xl text-xs text-gray-200 z-50 flex items-center gap-2">
+        <!-- Toast Status Alert Message -->
+        <div id="toast" class="hidden fixed bottom-6 left-1/2 -translate-x-1/2 px-4 py-3 bg-gray-900 border border-gray-800 rounded-xl shadow-2xl text-xs text-gray-200 z-50 flex items-center gap-2 transform transition-all">
             <span id="toastIcon" class="text-indigo-400"><i class="fa-solid fa-circle-info"></i></span>
-            <span id="toastText">Alert message placeholder</span>
+            <span id="toastText">Toast message</span>
         </div>
 
     </main>
 
-    <!-- Client Logins and API Data Handler Engine -->
     <script>
-        // State Globals
+        // Interactive state variables
         let state = {
             mode: 'demo', // 'demo' or 'live'
             googleClientId: '',
             geminiApiKey: '',
             googleAccessToken: null,
+            tokenExpiry: 0,
             calendarEvents: [],
             gmailThreads: [],
             newsStories: [],
-            synthesizedSpeechUrl: null,
+            synthesizedText: '',
             audioPlayer: null,
-            workingVersion: 'v1', // Auto-detected
-            workingModel: 'gemini-2.5-flash' // Auto-detected
+            workingVersion: 'v1',
+            workingModel: 'gemini-2.5-flash'
         };
 
-        // Standard Demo / Simulated Database
+        // Static Mock Data database for instant preview
         const mockCalendar = [
-            { summary: 'Client Strategy Kickoff', start: { dateTime: new Date(Date.now() + 2*3600*1000).toISOString() }, location: 'Boardroom A' },
-            { summary: 'Team Sync & Retrospective', start: { dateTime: new Date(Date.now() + 5*3600*1000).toISOString() }, location: 'Virtual (Teams)' },
-            { summary: 'Technical Roadmap Architecture Review', start: { dateTime: new Date(Date.now() + 24*3600*1000).toISOString() }, location: 'Virtual' }
+            { summary: 'Product Architecture Review', start: { dateTime: new Date(Date.now() + 1.5*3600*1000).toISOString() }, location: 'Virtual Meet', htmlLink: 'https://calendar.google.com' },
+            { summary: 'Private Strategy Deep-Dive', start: { dateTime: new Date(Date.now() + 4*3600*1000).toISOString() }, location: 'Executive Suite B', htmlLink: 'https://calendar.google.com' },
+            { summary: 'Client Sync: Global Operations', start: { dateTime: new Date(Date.now() + 24*3600*1000).toISOString() }, location: 'Virtual', htmlLink: 'https://calendar.google.com' }
         ];
 
         const mockGmail = [
-            { snippet: 'Urgent: Feedback needed on the architecture draft for the York transit app integration before EOD tomorrow.', from: 'sarah.engineering@company.com' },
-            { snippet: 'Your weekly server metrics report. All microservices healthy, 99.98% uptime in production.', from: 'sysmon-alerts@internal.net' },
-            { snippet: 'Reminder: Quarterly Review is scheduled for Friday. Please submit slide contributions.', from: 'executive-office@office.com' }
+            { id: '1', threadId: 'thread1', snippet: 'Urgent: Feedback required regarding architecture draft integration schedules.', from: 'operations@company.com' },
+            { id: '2', threadId: 'thread2', snippet: 'Your server analytics summary. All microservices healthy with 99.9% uptime.', from: 'alerts@sysmon.net' },
+            { id: '3', threadId: 'thread3', snippet: 'Action Needed: Submit your monthly contribution metrics before the deadline.', from: 'finance@hq.com' }
         ];
 
-        // Bootstrapping
+        // App Bootstrap Hook
         window.onload = function() {
             loadSavedConfig();
             fetchNewsFeeds();
             renderDashboard();
+
+            // Attempt seamless auto login upon return to PWA
+            if (state.mode === 'live' && state.googleClientId) {
+                silentAutoAuthentication(false);
+            }
         };
 
-        // Loading from Local Device Cache
+        // Screen Fullscreen API Manager
+        function toggleAppFullscreen() {
+            const icon = document.getElementById('fullscreenIcon');
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().then(() => {
+                    icon.className = "fa-solid fa-compress text-sm text-purple-400";
+                    showToast("Fullscreen Enabled!", "success");
+                }).catch(err => {
+                    // Fallback to warning if browser restricts
+                    showToast("PWA: For pure fullscreen, add to your home screen!", "info");
+                });
+            } else {
+                document.exitFullscreen().then(() => {
+                    icon.className = "fa-solid fa-expand text-sm";
+                });
+            }
+        }
+
+        // Persistent State Loader
         function loadSavedConfig() {
             const savedMode = localStorage.getItem('widget_mode');
             const savedGId = localStorage.getItem('google_client_id');
             const savedGemKey = localStorage.getItem('gemini_api_key');
             const savedVer = localStorage.getItem('gemini_working_version');
             const savedMod = localStorage.getItem('gemini_working_model');
+            const savedTok = localStorage.getItem('google_access_token');
+            const savedExp = localStorage.getItem('google_token_expiry');
 
             if (savedMode) state.mode = savedMode;
             if (savedGId) {
@@ -315,25 +365,61 @@
             }
             if (savedVer) state.workingVersion = savedVer;
             if (savedMod) state.workingModel = savedMod;
+            if (savedTok) state.googleAccessToken = savedTok;
+            if (savedExp) state.tokenExpiry = parseInt(savedExp);
 
             updateModeUI();
+        }
 
-            // Silently check if a valid persistent Google access token is already cached
-            if (state.mode === 'live' && state.googleClientId) {
-                const savedToken = localStorage.getItem('google_access_token');
-                const savedExpiry = localStorage.getItem('google_token_expiry');
+        // Google Seamless Auto-Authentication
+        function silentAutoAuthentication(forced = false) {
+            const now = Date.now();
+            if (state.googleAccessToken && now < state.tokenExpiry && !forced) {
+                // Token is still valid! Simply fetch items seamlessly
+                fetchGoogleLiveAll();
+                return;
+            }
 
-                // If the token exists and is valid (with a 60-second buffer margin)
-                if (savedToken && savedExpiry && parseInt(savedExpiry) > (Date.now() + 60000)) {
-                    state.googleAccessToken = savedToken;
-                    fetchGoogleLiveAll();
-                } else {
-                    document.getElementById('reconnectBanner').classList.remove('hidden');
-                }
+            // Silent or background acquisition
+            if (!state.googleClientId) return;
+
+            document.getElementById('reconnectBanner').classList.add('hidden');
+
+            try {
+                const client = google.accounts.oauth2.initTokenClient({
+                    client_id: state.googleClientId,
+                    scope: 'https://www.googleapis.com/auth/calendar.readonly https://www.googleapis.com/auth/gmail.readonly',
+                    callback: (tokenResponse) => {
+                        if (tokenResponse && tokenResponse.access_token) {
+                            state.googleAccessToken = tokenResponse.access_token;
+                            state.tokenExpiry = Date.now() + (parseInt(tokenResponse.expires_in) * 1000);
+                            
+                            // Save to cache for next load
+                            localStorage.setItem('google_access_token', tokenResponse.access_token);
+                            localStorage.setItem('google_token_expiry', state.tokenExpiry.toString());
+                            
+                            fetchGoogleLiveAll();
+                        }
+                    },
+                    error_callback: () => {
+                        showAuthenticationWarningBanner();
+                    }
+                });
+
+                // Request without prompt if possible to prevent invasive popups, or fallback smoothly
+                client.requestAccessToken({ prompt: forced ? 'consent' : '' });
+            } catch (err) {
+                showAuthenticationWarningBanner();
             }
         }
 
-        // Render functions
+        function showAuthenticationWarningBanner() {
+            if (state.mode === 'live') {
+                document.getElementById('reconnectBanner').classList.remove('hidden');
+            }
+        }
+
+        // Settings View Model Controllers
         function updateModeUI() {
             const badge = document.getElementById('connectionBadge');
             const demoBtn = document.getElementById('modeDemoBtn');
@@ -341,16 +427,16 @@
             const gSection = document.getElementById('googleCredSection');
 
             if (state.mode === 'live') {
-                badge.textContent = 'Live Google';
-                badge.className = "text-xs px-2.5 py-1 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20 font-medium";
-                demoBtn.className = "py-2 text-xs font-semibold rounded-lg transition-all text-gray-400";
-                liveBtn.className = "py-2 text-xs font-semibold rounded-lg transition-all bg-gray-800 text-white";
+                badge.textContent = 'Live Mode';
+                badge.className = "text-[10px] px-2.5 py-1 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20 font-bold tracking-wide uppercase";
+                demoBtn.className = "py-2.5 text-xs font-semibold rounded-lg transition-all text-gray-500";
+                liveBtn.className = "py-2.5 text-xs font-semibold rounded-lg transition-all bg-gray-800 text-white";
                 gSection.classList.remove('hidden');
             } else {
                 badge.textContent = 'Demo Mode';
-                badge.className = "text-xs px-2.5 py-1 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20 font-medium";
-                demoBtn.className = "py-2 text-xs font-semibold rounded-lg transition-all bg-gray-800 text-white";
-                liveBtn.className = "py-2 text-xs font-semibold rounded-lg transition-all text-gray-400";
+                badge.className = "text-[10px] px-2.5 py-1 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20 font-bold tracking-wide uppercase";
+                demoBtn.className = "py-2.5 text-xs font-semibold rounded-lg transition-all bg-gray-800 text-white";
+                liveBtn.className = "py-2.5 text-xs font-semibold rounded-lg transition-all text-gray-500";
                 gSection.classList.add('hidden');
             }
         }
@@ -359,52 +445,54 @@
             state.mode = targetMode;
             localStorage.setItem('widget_mode', targetMode);
             updateModeUI();
-
-            const banner = document.getElementById('reconnectBanner');
+            
             if (targetMode === 'live') {
-                const savedToken = localStorage.getItem('google_access_token');
-                const savedExpiry = localStorage.getItem('google_token_expiry');
-                if (savedToken && savedExpiry && parseInt(savedExpiry) > (Date.now() + 60000)) {
-                    state.googleAccessToken = savedToken;
-                    fetchGoogleLiveAll();
+                if (state.googleClientId) {
+                    silentAutoAuthentication(true);
                 } else {
-                    banner.classList.remove('hidden');
+                    openSettings();
+                    showToast("Please enter your OAuth Client ID below!", "info");
                 }
             } else {
-                banner.classList.add('hidden');
+                renderDashboard();
+                document.getElementById('reconnectBanner').classList.add('hidden');
             }
-
-            renderDashboard();
-            showToast(`Switched to ${targetMode === 'live' ? 'Live Cloud Mode' : 'Simulated Demo Mode'}`);
         }
 
+        // Tactical Redirect Core Trigger (Intelligent mobile app scheme opening)
+        function triggerNativeDeepLink(appUrl, webUrl) {
+            // Haptic tap feedback logic trigger helper
+            if (navigator.vibrate) navigator.vibrate(12);
+
+            const start = Date.now();
+            window.location.href = appUrl; // Try opening app
+
+            setTimeout(() => {
+                // If the app didn't open and redirect, open browser tab instead
+                if (Date.now() - start < 1500) {
+                    window.open(webUrl, '_blank');
+                }
+            }, 800);
+        }
+
+        // Consolidated dashboard update helper
         function renderDashboard() {
             renderCalendar();
             renderGmail();
         }
 
+        // Render Agenda Lists
         function renderCalendar() {
             const list = document.getElementById('calendarList');
             const count = document.getElementById('calendarCount');
-
-            if (state.mode === 'live' && !state.googleAccessToken) {
-                count.textContent = 'Locked';
-                list.innerHTML = `
-                    <div class="text-center py-8 text-gray-500 italic text-[11px] flex flex-col items-center justify-center gap-2">
-                        <i class="fa-solid fa-lock text-gray-600 text-sm"></i>
-                        <span>Reconnect to load live calendar events.</span>
-                    </div>
-                `;
-                return;
-            }
-
             const events = state.mode === 'live' ? state.calendarEvents : mockCalendar;
+
             count.textContent = `${events.length} Events`;
 
             if (events.length === 0) {
                 list.innerHTML = `
-                    <div class="text-center py-8 text-gray-500 italic">
-                        No upcoming meetings found.
+                    <div class="text-center py-8 text-gray-500 italic text-[11px]">
+                        No upcoming agenda meetings found.
                     </div>
                 `;
                 return;
@@ -412,48 +500,45 @@
 
             list.innerHTML = events.map(ev => {
                 const title = ev.summary || 'Untitled Event';
-                const loc = ev.location || 'No location set';
+                const loc = ev.location || 'No location details';
+                const webLink = ev.htmlLink || 'https://calendar.google.com';
+                
                 let timeStr = 'All Day';
                 if (ev.start && ev.start.dateTime) {
                     const d = new Date(ev.start.dateTime);
                     timeStr = d.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
                 }
+
+                // Apple/Android Google calendar deep links
+                const appLink = `googlecalendar://event?id=${ev.id || ''}`;
+
                 return `
-                    <div class="p-3 bg-gray-900/50 hover:bg-gray-800/40 rounded-xl border border-gray-800/80 transition-all">
-                        <div class="flex justify-between items-start gap-2">
-                            <span class="font-bold text-gray-200 text-xs truncate max-w-[75%]">${title}</span>
-                            <span class="text-[10px] font-bold text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded">${timeStr}</span>
+                    <div onclick="triggerNativeDeepLink('${appLink}', '${webLink}')" class="p-3 bg-gray-900/50 hover:bg-gray-800/40 rounded-xl border border-gray-800/80 transition-all active:scale-[0.97] cursor-pointer flex flex-col justify-between h-[62px]">
+                        <div class="flex justify-between items-center gap-2">
+                            <span class="font-bold text-gray-200 text-[11px] truncate max-w-[70%]">${title}</span>
+                            <span class="text-[9px] font-bold text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded">${timeStr}</span>
                         </div>
-                        <div class="text-[10px] text-gray-500 mt-1 flex items-center gap-1.5 truncate">
-                            <i class="fa-solid fa-location-dot"></i> ${loc}
+                        <div class="flex justify-between items-center text-[9px] text-gray-500 mt-1">
+                            <span class="truncate max-w-[80%]"><i class="fa-solid fa-location-dot text-blue-500/70 mr-1"></i> ${loc}</span>
+                            <i class="fa-solid fa-arrow-up-right-from-square text-[8px] text-gray-600"></i>
                         </div>
                     </div>
                 `;
             }).join('');
         }
 
+        // Render Gmail Lists
         function renderGmail() {
             const list = document.getElementById('emailList');
             const count = document.getElementById('emailCount');
-
-            if (state.mode === 'live' && !state.googleAccessToken) {
-                count.textContent = 'Locked';
-                list.innerHTML = `
-                    <div class="text-center py-8 text-gray-500 italic text-[11px] flex flex-col items-center justify-center gap-2">
-                        <i class="fa-solid fa-lock text-gray-600 text-sm"></i>
-                        <span>Reconnect to load live unread emails.</span>
-                    </div>
-                `;
-                return;
-            }
-
             const mails = state.mode === 'live' ? state.gmailThreads : mockGmail;
+
             count.textContent = `${mails.length} Unread`;
 
             if (mails.length === 0) {
                 list.innerHTML = `
-                    <div class="text-center py-8 text-gray-500 italic">
-                        Inbox clean! No unread messages.
+                    <div class="text-center py-8 text-gray-500 italic text-[11px]">
+                        Clean inbox! All caught up.
                     </div>
                 `;
                 return;
@@ -461,20 +546,28 @@
 
             list.innerHTML = mails.map(mail => {
                 const snippet = mail.snippet || '(No message preview)';
-                const sender = mail.from || 'Unknown Sender';
+                const sender = mail.from || 'Unknown';
+                const threadId = mail.threadId || mail.id;
+                
+                const webLink = `https://mail.google.com/mail/u/0/#inbox/${threadId}`;
+                const appLink = `googlegmail:///co?threadId=${threadId}`;
+
                 return `
-                    <div class="p-3 bg-gray-900/50 hover:bg-gray-800/40 rounded-xl border border-gray-800/80 transition-all">
-                        <div class="flex justify-between items-start gap-2 mb-1">
-                            <span class="font-semibold text-[10px] text-red-300 truncate max-w-[80%]">${sender}</span>
-                            <span class="w-2 h-2 rounded-full bg-red-500 animate-pulse mt-1"></span>
+                    <div onclick="triggerNativeDeepLink('${appLink}', '${webLink}')" class="p-3 bg-gray-900/50 hover:bg-gray-800/40 rounded-xl border border-gray-800/80 transition-all active:scale-[0.97] cursor-pointer h-[62px] flex flex-col justify-between">
+                        <div class="flex justify-between items-center gap-1.5">
+                            <span class="font-bold text-[10px] text-red-300 truncate max-w-[80%]">${sender}</span>
+                            <span class="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse shrink-0"></span>
                         </div>
-                        <p class="text-[10px] text-gray-400 leading-normal line-clamp-2">${snippet}</p>
+                        <div class="flex items-center justify-between gap-2 mt-0.5">
+                            <p class="text-[10px] text-gray-400 leading-normal line-clamp-1 truncate flex-1">${snippet}</p>
+                            <i class="fa-solid fa-arrow-up-right-from-square text-[8px] text-gray-600 shrink-0"></i>
+                        </div>
                     </div>
                 `;
             }).join('');
         }
 
-        // Live News Downloader (Bypassing direct CORS issues using reliable free proxy converter)
+        // Fetch and Render World News
         async function fetchNewsFeeds() {
             const list = document.getElementById('newsList');
             try {
@@ -488,32 +581,36 @@
                         link: item.link
                     }));
                 } else {
-                    throw new Error("Empty list");
+                    throw new Error("Empty feeds context");
                 }
             } catch (err) {
+                // Hardcoded fallback data on service error
                 state.newsStories = [
-                    { title: "Global financial markets adjust to changing regulatory outlooks across Europe", source: "Financial Digest" },
-                    { title: "Decarbonization target deadlines prompt shift toward advanced solar infrastructure solutions", source: "Global Echo" },
-                    { title: "Subterranean mapping project reveals unexplored ancient system layers under Rome", source: "Archeological Daily" },
-                    { title: "New autonomous marine exploration vehicle successfully finishes deep Pacific ocean crossing", source: "Tech Horizons" },
-                    { title: "International space collaboration plans unified lunar orbital coordinates framework", source: "Aerospace Hub" }
+                    { title: "Global structural markets adjust to changing regulatory models across central Europe", source: "Financial Times", link: "https://bbc.com/news/world" },
+                    { title: "Decarbonization target deadlines prompt dynamic shift toward solar grid solutions", source: "Reuters", link: "https://bbc.com/news/world" },
+                    { title: "Subterranean mapping project reveals unexplored system layers under Rome", source: "BBC Tech", link: "https://bbc.com/news/world" },
+                    { title: "Autonomous submersibles conclude deep Pacific trench geographical search missions", source: "Scientific Hub", link: "https://bbc.com/news/world" },
+                    { title: "International space cooperation plans unified lunar landing grid guidelines", source: "Space Ops", link: "https://bbc.com/news/world" }
                 ];
             }
 
             list.innerHTML = state.newsStories.map((story, i) => {
                 return `
-                    <div class="flex items-start gap-3 border-b border-gray-800/40 pb-3 last:border-none last:pb-0">
-                        <span class="w-5 h-5 flex items-center justify-center text-[10px] font-bold text-emerald-400 bg-emerald-500/10 rounded-lg shrink-0 mt-0.5">${i + 1}</span>
-                        <div class="space-y-0.5">
+                    <div onclick="if(navigator.vibrate) navigator.vibrate(10); window.open('${story.link}', '_blank');" class="flex items-start gap-3 border-b border-gray-800/40 pb-3 last:border-none last:pb-0 hover:bg-gray-800/10 p-1.5 rounded-xl transition-all active:scale-[0.98] cursor-pointer">
+                        <span class="w-5 h-5 flex items-center justify-center text-[9px] font-black text-emerald-400 bg-emerald-500/10 rounded-lg shrink-0 mt-0.5">${i + 1}</span>
+                        <div class="space-y-0.5 flex-1">
                             <h4 class="text-xs text-gray-200 font-medium leading-relaxed">${story.title}</h4>
-                            <p class="text-[10px] text-gray-500">${story.source}</p>
+                            <p class="text-[9px] text-gray-500 flex items-center gap-1.5 font-bold uppercase tracking-wider">
+                                <span>${story.source}</span>
+                                <i class="fa-solid fa-arrow-up-right-from-square text-[7px] text-gray-600"></i>
+                            </p>
                         </div>
                     </div>
                 `;
             }).join('');
         }
 
-        // Active Overlay UI Handlers
+        // Modal Control Triggers
         function openSettings() {
             document.getElementById('settingsModal').classList.remove('hidden');
         }
@@ -527,7 +624,7 @@
             const key = document.getElementById('geminiApiKey').value.trim();
             state.geminiApiKey = key;
             localStorage.setItem('gemini_api_key', key);
-            showToast("Gemini key saved successfully!", "success");
+            showToast("Gemini key saved securely!", "success");
         }
 
         function showToast(text, status = "info") {
@@ -550,76 +647,34 @@
             }, 3000);
         }
 
-        // OAuth Sign in Management
+        // Explicit Google Login Flow
         function initiateGoogleLogin() {
             const cId = document.getElementById('googleClientId').value.trim();
             if (!cId) {
-                showToast("Please input a valid Client ID!", "error");
+                showToast("Please enter a valid Client ID!", "error");
                 return;
             }
             state.googleClientId = cId;
             localStorage.setItem('google_client_id', cId);
 
-            // Google identity Client Authorization
-            const client = google.accounts.oauth2.initTokenClient({
-                client_id: cId,
-                scope: 'https://www.googleapis.com/auth/calendar.readonly https://www.googleapis.com/auth/gmail.readonly',
-                callback: (tokenResponse) => {
-                    if (tokenResponse && tokenResponse.access_token) {
-                        state.googleAccessToken = tokenResponse.access_token;
-                        
-                        // Cache token & exact expiration timestamp securely to survive app restarts
-                        localStorage.setItem('google_access_token', tokenResponse.access_token);
-                        const expiry = Date.now() + (tokenResponse.expires_in * 1000);
-                        localStorage.setItem('google_token_expiry', expiry);
-
-                        document.getElementById('reconnectBanner').classList.add('hidden');
-                        showToast("Authenticated with Google! Fetching items...", "success");
-                        fetchGoogleLiveAll();
-                    }
-                },
-                error_callback: (err) => {
-                    showToast("OAuth flow rejected: " + err.message, "error");
-                }
-            });
-
-            client.requestAccessToken();
+            silentAutoAuthentication(true);
         }
 
-        // Handle unauthorized / expired requests gracefully
-        function handleAuthError() {
-            state.googleAccessToken = null;
-            localStorage.removeItem('google_access_token');
-            localStorage.removeItem('google_token_expiry');
-            document.getElementById('reconnectBanner').classList.remove('hidden');
-            renderDashboard();
-            showToast("Google authorization expired. Reconnect needed.", "error");
-        }
-
+        // Fetch Live Items API
         async function fetchGoogleLiveAll() {
             if (!state.googleAccessToken) return;
-            document.getElementById('reconnectBanner').classList.add('hidden');
             try {
-                // Fetch Calendar
+                // Fetch Calendar Items
                 const calRes = await fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events?maxResults=8&orderBy=startTime&singleEvents=true&timeMin=' + new Date().toISOString(), {
                     headers: { 'Authorization': `Bearer ${state.googleAccessToken}` }
                 });
-                
-                if (calRes.status === 401) {
-                    handleAuthError();
-                    return;
-                }
                 const calData = await calRes.json();
                 if (calData.items) state.calendarEvents = calData.items;
 
-                // Fetch Gmail
+                // Fetch Gmail Messages
                 const mailRes = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages?q=is:unread&maxResults=8', {
                     headers: { 'Authorization': `Bearer ${state.googleAccessToken}` }
                 });
-                if (mailRes.status === 401) {
-                    handleAuthError();
-                    return;
-                }
                 const mailData = await mailRes.json();
                 
                 state.gmailThreads = [];
@@ -628,18 +683,15 @@
                         const msgDetail = await fetch(`https://gmail.googleapis.com/gmail/v1/users/me/messages/${msg.id}`, {
                             headers: { 'Authorization': `Bearer ${state.googleAccessToken}` }
                         });
-                        if (msgDetail.status === 401) {
-                            handleAuthError();
-                            return;
-                        }
                         const md = await msgDetail.json();
                         
-                        // Extract basic headers
                         const headers = md.payload.headers;
                         const fromHeader = headers.find(h => h.name.toLowerCase() === 'from');
                         const from = fromHeader ? fromHeader.value.replace(/<.*>/, '').trim() : "Unknown";
                         
                         state.gmailThreads.push({
+                            id: md.id,
+                            threadId: md.threadId,
                             snippet: md.snippet,
                             from: from
                         });
@@ -649,53 +701,45 @@
                 renderDashboard();
                 showToast("Live data updated!", "success");
             } catch (err) {
-                showToast("Error updating Google services: " + err.message, "error");
+                showAuthenticationWarningBanner();
             }
         }
 
         function logoutGoogle() {
             state.googleAccessToken = null;
+            state.tokenExpiry = 0;
             state.calendarEvents = [];
             state.gmailThreads = [];
             localStorage.removeItem('google_access_token');
             localStorage.removeItem('google_token_expiry');
-            document.getElementById('reconnectBanner').classList.add('hidden');
             renderDashboard();
-            showToast("Logged out of Google accounts.");
+            showToast("Logged out of Google Accounts.");
         }
 
-        // Close ask bar result container
         function closeSearchResults() {
             document.getElementById('searchResultsPanel').classList.add('hidden');
         }
 
-        // PROBE & DIAGNOSTICS ENGINE (The fix for the NOT_FOUND error)
+        // Multi-Path Diagnostic Probe
         async function testGeminiDiagnostics() {
             const key = document.getElementById('geminiApiKey').value.trim();
             if (!key) {
-                showToast("Please paste an API key first!", "error");
+                showToast("Please enter a key first!", "error");
                 return;
             }
 
             const dBox = document.getElementById('diagnosticsBox');
             const dLog = document.getElementById('diagnosticsLog');
             dBox.classList.remove('hidden');
-            dLog.innerHTML = `<p class="text-blue-400">⚡ Starting multi-endpoint test sequence...</p>`;
+            dLog.innerHTML = `<p class="text-blue-400">⚡ Initializing test sequence...</p>`;
 
-            // Common configurations to test sequentially
             const versions = ['v1', 'v1beta'];
-            const models = [
-                'gemini-2.5-flash', 
-                'gemini-1.5-flash', 
-                'gemini-2.5-flash-latest', 
-                'gemini-1.5-flash-latest'
-            ];
-
+            const models = ['gemini-2.5-flash', 'gemini-1.5-flash', 'gemini-2.5-flash-latest', 'gemini-1.5-flash-latest'];
             let success = false;
 
             for (const version of versions) {
                 for (const model of models) {
-                    dLog.innerHTML += `<p class="text-gray-500">Probing URL path: /${version}/models/${model} ...</p>`;
+                    dLog.innerHTML += `<p class="text-gray-500">Checking route: /${version}/models/${model} ...</p>`;
                     dBox.scrollTop = dBox.scrollHeight;
 
                     try {
@@ -704,7 +748,7 @@
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({
-                                contents: [{ parts: [{ text: "Write the word 'ACTIVE' and nothing else." }] }]
+                                contents: [{ parts: [{ text: "Return 'OK'" }] }]
                             })
                         });
 
@@ -720,17 +764,16 @@
                             localStorage.setItem('gemini_working_version', version);
                             localStorage.setItem('gemini_working_model', model);
 
-                            dLog.innerHTML += `<p class="text-emerald-400 font-bold">✓ Success! Connected using API Version: [${version}] and Model: [${model}]</p>`;
+                            dLog.innerHTML += `<p class="text-emerald-400 font-bold">✓ Connected! Verified [${version}] path using [${model}].</p>`;
                             dBox.scrollTop = dBox.scrollHeight;
-                            showToast("API Handshake Successful!", "success");
+                            showToast("Gemini Connection Verified!", "success");
                             break;
                         } else {
                             const errCode = data.error?.status || response.status;
-                            const errMsg = data.error?.message || "Unknown error";
-                            dLog.innerHTML += `<p class="text-rose-400/80">✗ Fail [${errCode}]: ${errMsg.substring(0, 50)}...</p>`;
+                            dLog.innerHTML += `<p class="text-rose-400/80">✗ Failed: [${errCode}]</p>`;
                         }
                     } catch (e) {
-                        dLog.innerHTML += `<p class="text-rose-400/80">✗ Network failure: ${e.message}</p>`;
+                        dLog.innerHTML += `<p class="text-rose-400/80">✗ Connection error: ${e.message}</p>`;
                     }
                 }
                 if (success) break;
@@ -738,23 +781,22 @@
 
             if (!success) {
                 dLog.innerHTML += `
-                    <p class="text-amber-400 font-bold mt-2 border-t border-gray-900 pt-2">💡 HELP TIP:</p>
+                    <p class="text-amber-400 font-bold mt-2 border-t border-gray-900 pt-2">💡 Troubleshooting Advice:</p>
                     <p class="text-gray-300 leading-normal">
-                        If all setups fail with 404/NOT_FOUND, you likely generated your key in Google Cloud Console instead of Google AI Studio. 
-                        Go to your GCP Console search bar, find the <strong>"Generative Language API"</strong> under the API Library, and click <strong>Enable</strong>.
+                        Verify that the <strong>"Generative Language API"</strong> is fully enabled in your Google Cloud Project settings if you generated this key from Google Cloud Console.
                     </p>
                 `;
                 dBox.scrollTop = dBox.scrollHeight;
-                showToast("Handshake failed. See diagnostic logs below.", "error");
+                showToast("Connection failed.", "error");
             }
         }
 
-        // Active Synthesis Processing Command
+        // Model Runner
         async function runGeminiCommand(promptText) {
             if (!state.geminiApiKey) {
                 openSettings();
-                showToast("Please enter and save your Gemini API Key in settings first!", "error");
-                throw new Error("Missing Gemini API Key");
+                showToast("Please save your Gemini API Key first!", "error");
+                throw new Error("Missing Gemini key");
             }
 
             const targetUrl = `https://generativelanguage.googleapis.com/${state.workingVersion}/models/${state.workingModel}:generateContent?key=${state.geminiApiKey}`;
@@ -776,75 +818,99 @@
             return resData.candidates?.[0]?.content?.parts?.[0]?.text;
         }
 
-        // EXEC BRIEFING SYNTHESIS CALL
+        // Formulate Daily Overview Segment Cards
         async function synthesizeDailyOverview() {
             const out = document.getElementById('briefingContent');
             out.innerHTML = `
-                <div class="flex flex-col items-center justify-center py-4 space-y-2">
+                <div class="flex flex-col items-center justify-center py-6 space-y-2">
                     <i class="fa-solid fa-wand-magic-sparkles text-purple-400 animate-spin text-lg"></i>
-                    <p class="text-[10px] text-gray-400">Compiling calendar and email feeds...</p>
+                    <p class="text-[10px] text-gray-400 uppercase tracking-widest font-bold">Compiling System Feeds...</p>
                 </div>
             `;
 
-            // Prepare local system information context to deliver to AI
             const currentEvents = state.mode === 'live' ? state.calendarEvents : mockCalendar;
             const currentMails = state.mode === 'live' ? state.gmailThreads : mockGmail;
             
             const eventsString = currentEvents.map(e => `Event: ${e.summary} at ${e.start?.dateTime || 'All Day'} (Loc: ${e.location || 'N/A'})`).join('\n');
             const mailsString = currentMails.map(m => `Unread Email from ${m.from}: "${m.snippet}"`).join('\n');
-            const newsString = state.newsStories.map(n => `- ${n.title} (Source: ${n.source})`).join('\n');
+            const newsString = state.newsStories.map(n => `- ${n.title}`).join('\n');
 
             const systemCommand = `
-You are an elite, highly precise personal executive assistant. 
-Synthesize the user's raw data into a brief, high-impact Daily Executive Briefing (Max 120 words).
-Structure it into exactly three parts:
-1. "OUTLOOK" (One short sentence synthesizing key agenda timing issues).
-2. "PRIORITIES" (Bullet points summarizing key followups needed for important unread emails).
-3. "GLOBAL IMPACT" (One sentence describing how today's major news interacts with their daily focus).
+You are a top-tier personal executive briefing engine.
+Synthesize the user's details into a premium, hyper-crisp Morning Executive Briefing (Maximum 100 words total).
+Deliver the output utilizing exactly this structural design using HTML tags (NO markdown fences or backticks inside your response):
 
-Here is the user's raw feed:
+<div class="space-y-3">
+    <div class="p-2.5 rounded-xl bg-blue-500/10 border border-blue-500/20">
+        <div class="flex items-center gap-1.5 font-bold text-blue-300 text-[10px] uppercase mb-1">
+            <i class="fa-solid fa-cloud-sun"></i> OUTLOOK
+        </div>
+        <p class="text-gray-300 text-[11px] leading-relaxed">[One sentence timeline overview of today's schedule intensity]</p>
+    </div>
+    <div class="p-2.5 rounded-xl bg-rose-500/10 border border-rose-500/20">
+        <div class="flex items-center gap-1.5 font-bold text-rose-300 text-[10px] uppercase mb-1">
+            <i class="fa-solid fa-triangle-exclamation"></i> ACTION REQUIRED
+        </div>
+        <p class="text-gray-300 text-[11px] leading-relaxed">[What specific important message or email needs direct reply or attention today]</p>
+    </div>
+    <div class="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
+        <div class="flex items-center gap-1.5 font-bold text-emerald-300 text-[10px] uppercase mb-1">
+            <i class="fa-solid fa-chart-line"></i> GLOBAL SYNTHESIS
+        </div>
+        <p class="text-gray-300 text-[11px] leading-relaxed">[One highly precise connection of how today's news correlates to their workspace agenda]</p>
+    </div>
+</div>
+
+User context details:
 ---
-UPCOMING AGENDA CALENDAR:
-${eventsString || 'No scheduled events today.'}
+UPCOMING CALENDAR EVENTS:
+${eventsString || 'None scheduled today.'}
 
-UNREAD INCOMING GMAIL INBOX:
-${mailsString || 'Clean inbox. No unread emails.'}
+UNREAD EMAIL THREADS:
+${mailsString || 'Inbox zero.'}
 
-WORLD NEWS REPORT:
-${newsString || 'No live world news available.'}
+BBC WORLD NEWS TOP HEADLINES:
+${newsString || 'No live headlines.'}
             `;
 
             try {
                 const responseText = await runGeminiCommand(systemCommand);
-                out.innerHTML = `<div class="space-y-2 whitespace-pre-line">${responseText}</div>`;
+                // Clean any accidental markdown code fences from AI
+                const cleanHTML = responseText.replace(/```html|```/g, '').trim();
+                out.innerHTML = cleanHTML;
                 
-                // Store state and display listen audio button
-                state.synthesizedText = responseText;
+                // Track raw text for text-to-speech engine fallback reading
+                const tempDiv = document.createElement("div");
+                tempDiv.innerHTML = cleanHTML;
+                state.synthesizedText = tempDiv.textContent || tempDiv.innerText || cleanHTML;
+                
                 document.getElementById('ttsBtn').classList.remove('hidden');
-                showToast("Morning Briefing Generated!", "success");
+                showToast("Briefing Formulated!", "success");
             } catch (err) {
                 out.innerHTML = `
-                    <div class="text-rose-400 p-2 text-center text-[11px]">
-                        <i class="fa-solid fa-triangle-exclamation text-rose-500 mr-1"></i> Synthesis failed: ${err.message}<br>
-                        <button onclick="openSettings()" class="mt-2 text-[10px] text-purple-300 underline font-semibold">Open Settings & test key</button>
+                    <div class="text-rose-400 p-2 text-center text-[10px]">
+                        <i class="fa-solid fa-triangle-exclamation text-rose-500 mr-1"></i> Synthesis Failed: ${err.message}<br>
+                        <button onclick="openSettings()" class="mt-2 text-[10px] text-purple-300 underline font-bold uppercase tracking-wider">Configure API Key</button>
                     </div>
                 `;
             }
         }
 
-        // CHAT WITH YOUR DAY (Ask Gemini Search Panel)
+        // conversational intelligence assistant
         async function askGeminiSearch() {
             const queryBox = document.getElementById('geminiSearchInput');
             const queryText = queryBox.value.trim();
             if (!queryText) return;
+
+            if (navigator.vibrate) navigator.vibrate(12);
 
             const resPanel = document.getElementById('searchResultsPanel');
             const resContent = document.getElementById('searchResultsContent');
 
             resPanel.classList.remove('hidden');
             resContent.innerHTML = `
-                <div class="flex items-center gap-2 text-purple-400 py-1 font-semibold animate-pulse">
-                    <i class="fa-solid fa-brain"></i> Thinking...
+                <div class="flex items-center gap-2 text-purple-400 py-1 font-bold animate-pulse text-[10px] uppercase tracking-wider">
+                    <i class="fa-solid fa-spinner animate-spin"></i> Core Thinking...
                 </div>
             `;
 
@@ -852,76 +918,71 @@ ${newsString || 'No live world news available.'}
             const currentMails = state.mode === 'live' ? state.gmailThreads : mockGmail;
 
             const structuredDataString = `
-Calendar Events:
-${JSON.stringify(currentEvents)}
-
-Unread Emails:
-${JSON.stringify(currentMails)}
-
-Live News:
-${JSON.stringify(state.newsStories)}
+Calendar events: ${JSON.stringify(currentEvents)}
+Emails: ${JSON.stringify(currentMails)}
+Global News: ${JSON.stringify(state.newsStories)}
             `;
 
             const commandPrompt = `
-You are an executive assistant checking the user's personal hub. Answer their specific query with high speed and precision.
-Refer to their real calendar, emails, and news if helpful.
+You are the central executive assistant AI of this mobile dashboard. Answer the user's query with maximum speed and precision using short sentences.
 
-QUERY: "${queryText}"
+USER QUERY: "${queryText}"
 
-USER DATA SCRAPED:
+CURRENT APP DATABASE STATUS:
 ${structuredDataString}
             `;
 
             try {
                 const responseText = await runGeminiCommand(commandPrompt);
                 resContent.innerHTML = responseText;
-                queryBox.value = ''; // Clean input
+                queryBox.value = ''; // Reset bar on complete
             } catch (err) {
                 resContent.innerHTML = `<span class="text-rose-400"><i class="fa-solid fa-triangle-exclamation"></i> Error: ${err.message}</span>`;
             }
         }
 
-        // TEXT-TO-SPEECH PLAYBACK (Using standard PCM16 to WAV Array buffer encoding)
+        // Text-To-Speech Playback System
         async function readBriefingAloud() {
             if (!state.synthesizedText) return;
             const ttsBtn = document.getElementById('ttsBtn');
+            const visualizer = document.getElementById('waveformContainer');
             
-            // Toggle Stop if playing
             if (state.audioPlayer && !state.audioPlayer.paused) {
                 state.audioPlayer.pause();
                 ttsBtn.innerHTML = `<i class="fa-solid fa-volume-high"></i> Listen`;
+                visualizer.classList.add('hidden');
                 return;
             }
 
+            if (navigator.vibrate) navigator.vibrate(15);
             ttsBtn.innerHTML = `<i class="fa-solid fa-spinner animate-spin"></i> Reading...`;
 
             try {
-                // Request speech rendering using Google's cloud TTS endpoint
                 const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=${state.geminiApiKey}`;
                 
                 const response = await fetch(url, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        contents: [{ parts: [{ text: `Say clearly: ${state.synthesizedText}` }] }],
+                        contents: [{ parts: [{ text: `Daily briefing: ${state.synthesizedText}` }] }],
                         generationConfig: {
                             responseModalities: ["AUDIO"],
                             speechConfig: {
                                 voiceConfig: {
-                                    prebuiltVoiceConfig: { voiceName: "Kore" } // Professional and articulate voice
+                                    prebuiltVoiceConfig: { voiceName: "Kore" }
                                 }
                             }
                         }
                     })
                 });
 
-                if (!response.ok) throw new Error("TTS Generation call rejected");
+                if (!response.ok) throw new Error("Voice stream rejected by Google");
                 const data = await response.json();
                 
                 const audioPart = data.candidates?.[0]?.content?.parts?.find(p => p.inlineData && p.inlineData.mimeType.startsWith('audio/'));
-                if (!audioPart) throw new Error("No voice stream data found in response payload");
+                if (!audioPart) throw new Error("No inline voice file found in response stream");
 
-                // Parse base64 header audio
+                // Process Base64 audio arrays
                 const rawBase64 = audioPart.inlineData.data;
                 const binaryString = atob(rawBase64);
                 const bytes = new Uint8Array(binaryString.length);
@@ -929,65 +990,51 @@ ${structuredDataString}
                     bytes[i] = binaryString.charCodeAt(i);
                 }
 
-                // Extract sample rate from Google's mimeType (typically audio/L16;rate=24000)
                 const rateMatch = audioPart.inlineData.mimeType.match(/rate=(\d+)/);
                 const sampleRate = rateMatch ? parseInt(rateMatch[1]) : 24000;
 
-                // Build a standard WAV container wrapper
                 const wavBuffer = encodePCMToWAV(bytes.buffer, sampleRate);
                 const blob = new Blob([wavBuffer], { type: 'audio/wav' });
                 const blobUrl = URL.createObjectURL(blob);
 
-                // Playback
                 if (state.audioPlayer) state.audioPlayer.pause();
                 state.audioPlayer = new Audio(blobUrl);
                 state.audioPlayer.play();
 
-                ttsBtn.innerHTML = `<i class="fa-solid fa-circle-stop animate-pulse text-red-400"></i> Stop`;
+                ttsBtn.innerHTML = `<i class="fa-solid fa-circle-stop text-red-400"></i> Stop`;
+                visualizer.classList.remove('hidden');
                 
                 state.audioPlayer.onended = () => {
                     ttsBtn.innerHTML = `<i class="fa-solid fa-volume-high"></i> Listen`;
+                    visualizer.classList.add('hidden');
                 };
 
             } catch (err) {
-                showToast("Voice synthesizer failed: " + err.message, "error");
+                showToast("Voice Synthesis Failed: Use browser fallback.", "error");
                 ttsBtn.innerHTML = `<i class="fa-solid fa-volume-high"></i> Listen`;
+                visualizer.classList.add('hidden');
             }
         }
 
-        // RAW PCM TO COMPLIANT PLAYBACK WAV WRAPPER UTILITY
+        // RAW PCM to WAV encoder utility
         function encodePCMToWAV(pcmBuffer, sampleRate) {
             const buffer = new ArrayBuffer(44 + pcmBuffer.byteLength);
             const view = new DataView(buffer);
 
-            // Chunk ID: "RIFF"
-            view.setUint32(0, 0x52494646, false);
-            // Chunk Size
+            view.setUint32(0, 0x52494646, false); // "RIFF"
             view.setUint32(4, 36 + pcmBuffer.byteLength, true);
-            // Format: "WAVE"
-            view.setUint32(8, 0x57415645, false);
-            // Subchunk1 ID: "fmt "
-            view.setUint32(12, 0x666d7420, false);
-            // Subchunk1 Size: 16
+            view.setUint32(8, 0x57415645, false); // "WAVE"
+            view.setUint32(12, 0x666d7420, false); // "fmt "
             view.setUint32(16, 16, true);
-            // Audio Format: 1 (Linear PCM)
-            view.setUint16(20, 1, true);
-            // Number of Channels: 1 (Mono)
-            view.setUint16(22, 1, true);
-            // Sample Rate
+            view.setUint16(20, 1, true); // Linear PCM
+            view.setUint16(22, 1, true); // Mono channel
             view.setUint32(24, sampleRate, true);
-            // Byte Rate: sampleRate * channels * bytesPerSample(2)
-            view.setUint32(28, sampleRate * 1 * 2, true);
-            // Block Align: channels * bytesPerSample(2)
+            view.setUint32(28, sampleRate * 2, true);
             view.setUint16(32, 2, true);
-            // Bits Per Sample: 16
-            view.setUint16(34, 16, true);
-            // Subchunk2 ID: "data"
-            view.setUint32(36, 0x64617461, false);
-            // Subchunk2 Size
+            view.setUint16(34, 16, true); // 16-bit
+            view.setUint32(36, 0x64617461, false); // "data"
             view.setUint32(40, pcmBuffer.byteLength, true);
 
-            // Paste raw PCM bytes into WAV structure
             const pcmView = new Uint8Array(pcmBuffer);
             const wavView = new Uint8Array(buffer, 44);
             wavView.set(pcmView);
