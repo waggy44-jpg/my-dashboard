@@ -843,7 +843,33 @@
             const currentEvents = state.mode === 'live' ? state.calendarEvents : mockCalendar;
             const currentMails = state.mode === 'live' ? state.gmailThreads : mockGmail;
             
-            const eventsString = currentEvents.map(e => `Event: ${e.summary} at ${e.start?.dateTime || 'All Day'} (Loc: ${e.location || 'N/A'})`).join('\n');
+            // Format current date dynamically so the AI knows exactly what today's date is
+            const currentDateTime = new Date().toLocaleDateString([], { 
+                weekday: 'long', 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric', 
+                hour: '2-digit', 
+                minute: '2-digit' 
+            });
+
+            // Format each event cleanly into human-readable dates for perfect AI parsing
+            const eventsString = currentEvents.map(e => {
+                let dateStr = 'All Day';
+                if (e.start) {
+                    const d = e.start.dateTime ? new Date(e.start.dateTime) : (e.start.date ? new Date(e.start.date) : null);
+                    if (d) {
+                        dateStr = d.toLocaleDateString([], { 
+                            weekday: 'long', 
+                            month: 'short', 
+                            day: 'numeric',
+                            year: 'numeric'
+                        }) + (e.start.dateTime ? ' at ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '');
+                    }
+                }
+                return `Event: "${e.summary}" Scheduled on: ${dateStr} (Loc: ${e.location || 'N/A'})`;
+            }).join('\n');
+
             const mailsString = currentMails.map(m => `Unread Email from ${m.from}: "${m.snippet}"`).join('\n');
             const newsString = state.newsStories.map(n => `- ${n.title}`).join('\n');
 
@@ -857,7 +883,7 @@ Deliver the output utilizing exactly this structural design using HTML tags (NO 
         <div class="flex items-center gap-1.5 font-bold text-blue-300 text-[10px] uppercase mb-1">
             <i class="fa-solid fa-cloud-sun"></i> OUTLOOK
         </div>
-        <p class="text-gray-300 text-[11px] leading-relaxed">[One sentence timeline overview of today's schedule intensity]</p>
+        <p class="text-gray-300 text-[11px] leading-relaxed">[One sentence timeline overview of today's schedule intensity, explicitly recognizing which events are TODAY and which are UPCOMING/TOMORROW or later based on the provided Current Date/Time]</p>
     </div>
     <div class="p-2.5 rounded-xl bg-rose-500/10 border border-rose-500/20">
         <div class="flex items-center gap-1.5 font-bold text-rose-300 text-[10px] uppercase mb-1">
@@ -873,10 +899,12 @@ Deliver the output utilizing exactly this structural design using HTML tags (NO 
     </div>
 </div>
 
+CURRENT SYSTEM DATE & TIME: ${currentDateTime}
+
 User context details:
 ---
-UPCOMING CALENDAR EVENTS:
-${eventsString || 'None scheduled today.'}
+UPCOMING CALENDAR EVENTS (Contrast these carefully with the current system date. Separate events happening TODAY from events scheduled for TOMORROW or future dates):
+${eventsString || 'None scheduled.'}
 
 UNREAD EMAIL THREADS:
 ${mailsString || 'Inbox zero.'}
@@ -929,6 +957,15 @@ ${newsString || 'No live headlines.'}
             const currentEvents = state.mode === 'live' ? state.calendarEvents : mockCalendar;
             const currentMails = state.mode === 'live' ? state.gmailThreads : mockGmail;
 
+            const currentDateTime = new Date().toLocaleDateString([], { 
+                weekday: 'long', 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric', 
+                hour: '2-digit', 
+                minute: '2-digit' 
+            });
+
             const structuredDataString = `
 Calendar events: ${JSON.stringify(currentEvents)}
 Emails: ${JSON.stringify(currentMails)}
@@ -937,6 +974,8 @@ Global News: ${JSON.stringify(state.newsStories)}
 
             const commandPrompt = `
 You are the central executive assistant AI of this mobile dashboard. Answer the user's query with maximum speed and precision using short sentences.
+
+CURRENT SYSTEM TIME: ${currentDateTime}
 
 USER QUERY: "${queryText}"
 
